@@ -1,0 +1,61 @@
+#include "intern.h"
+#include "pair.h"
+#include "prims.h"
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+
+static Value* intern_table = NULL;
+
+static Value* intern_table_insert(const char* s)
+{
+    Value* sym = value_symbol_create(s);
+    intern_table = CONS(sym, intern_table);
+    return sym;
+}
+
+Value* intern(const char* s)
+{
+    assert(intern_table && "Attempting to use uninitialized itern table! \n");
+    for (Value* p = intern_table; p != NIL; p = CDR(p)) {
+        Value* sym = CAR(p);
+        if (strcmp(sym->u.symbol, s) == 0)
+            return sym;
+    }
+    return intern_table_insert(s);
+}
+
+void intern_init(void)
+{
+    if (intern_table != NULL)
+        return;
+
+    intern_table = NIL;
+    intern("quote");
+    intern("if");
+    intern("define");
+    intern("lambda");
+    intern("#t");
+
+    PrimTable prim_table = get_prims();
+    for (size_t i = 0; i < prim_table.count; i++) {
+        intern(prim_table.prims[i].name);
+    }
+}
+
+void intern_cleanup(void)
+{
+    Value* current = intern_table;
+    while (current != NIL) {
+        Value* symbol_to_free = CAR(current);
+        Value* next_cell = CDR(current);
+
+        free(symbol_to_free->u.symbol);
+        free(symbol_to_free);
+
+        free(current);
+
+        current = next_cell;
+    }
+    intern_table = NULL;
+}
