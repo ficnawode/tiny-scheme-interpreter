@@ -1,5 +1,6 @@
 #include "prims.h"
 #include "eval.h"
+#include "intern.h"
 #include "pair.h"
 #include "value.h"
 

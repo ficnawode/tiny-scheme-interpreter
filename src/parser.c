@@ -54,10 +54,13 @@ static Value* parse_list(Parser* p)
         Value* node = CONS(expr, NIL);
         GC_POP();
 
-        if (head == NIL)
-            head = tail = node;
-        else
-            tail = CDR(tail) = node;
+        if (head == NIL) {
+            head = node;
+            tail = node;
+        } else {
+            CDR(tail) = node;
+            tail = node;
+        }
 
         if (p->current.type == TOK_RPAREN) {
             parser_advance(p);
