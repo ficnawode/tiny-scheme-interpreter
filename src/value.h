@@ -48,4 +48,3 @@ Value* value_closure_create(Value* params, Value* body, Value* env);
 int value_is_true(Value* v);
 
 void value_print(Value* v);
-void value_free(Value* v);
