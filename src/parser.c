@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "gc.h"
 #include "intern.h"
 #include "pair.h"
 #include "util.h"
@@ -35,28 +36,44 @@ static Value* parse_list(Parser* p)
         return NIL;
     }
 
-    Value* head = NULL;
-    Value* tail = NULL;
+    Value* head = NIL;
+    Value* tail = NIL;
+
+    GC_PUSH(head);
+    GC_PUSH(tail);
 
     for (;;) {
         Value* expr = parse_expr(p);
         if (!expr) {
+            GC_POP();
+            GC_POP();
             return NULL;
         }
 
+        GC_PUSH(expr);
         Value* node = CONS(expr, NIL);
-        if (!head)
+        GC_POP();
+
+        if (head == NIL)
             head = tail = node;
         else
             tail = CDR(tail) = node;
 
         if (p->current.type == TOK_RPAREN) {
             parser_advance(p);
+
+            GC_POP();
+            GC_POP();
+
             return head;
         }
 
         if (p->current.type == TOK_EOF) {
             fprintf(stderr, "Syntax error: missing ')'\n");
+
+            GC_POP();
+            GC_POP();
+
             return NULL;
         }
     }
@@ -65,7 +82,19 @@ static Value* parse_list(Parser* p)
 static Value* parse_quote(Parser* p)
 {
     parser_advance(p);
-    return CONS(intern("quote"), CONS(parse_expr(p), NIL));
+
+    Value* sym = intern("quote");
+    GC_PUSH(sym);
+
+    Value* expr = parse_expr(p);
+    GC_PUSH(expr);
+
+    Value* result = CONS(sym, CONS(expr, NIL));
+
+    GC_POP();
+    GC_POP();
+
+    return result;
 }
 
 Value* parse_expr(Parser* p)
@@ -73,10 +102,6 @@ Value* parse_expr(Parser* p)
     switch (p->current.type) {
     case TOK_LPAREN:
         parser_advance(p);
-        if (p->current.type == TOK_RPAREN) {
-            parser_advance(p);
-            return NIL;
-        }
         return parse_list(p);
 
     case TOK_QUOTE:

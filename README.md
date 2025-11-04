@@ -26,6 +26,15 @@ to interpret an entire file.
 
 # Features
 
-`if`, `define`, `quote`, `lambda`, booleans, integers, closures, some basic arithmetic/list primitives, `display`, and `newline`.
+- `if`, 
+- `define`, 
+- `quote`, 
+- `lambda`, 
+- booleans, 
+- integers, 
+- closures, 
+- some basic arithmetic/list primitives, 
+- `display` and `newline`.
+- garbage collection
 
 Inspired by MIT 6.001 (1986)

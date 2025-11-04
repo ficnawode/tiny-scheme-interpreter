@@ -1,6 +1,8 @@
 #include "intern.h"
+#include "gc.h"
 #include "pair.h"
 #include "prims.h"
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +12,9 @@ static Value* intern_table = NULL;
 static Value* intern_table_insert(const char* s)
 {
     Value* sym = value_symbol_create(s);
+    GC_PUSH(sym);
     intern_table = CONS(sym, intern_table);
+    GC_POP();
     return sym;
 }
 
@@ -31,6 +35,8 @@ void intern_init(void)
         return;
 
     intern_table = NIL;
+    gc_register_root(&intern_table);
+
     intern("quote");
     intern("if");
     intern("define");
@@ -41,21 +47,4 @@ void intern_init(void)
     for (size_t i = 0; i < prim_table.count; i++) {
         intern(prim_table.prims[i].name);
     }
-}
-
-void intern_cleanup(void)
-{
-    Value* current = intern_table;
-    while (current != NIL) {
-        Value* symbol_to_free = CAR(current);
-        Value* next_cell = CDR(current);
-
-        free(symbol_to_free->u.symbol);
-        free(symbol_to_free);
-
-        free(current);
-
-        current = next_cell;
-    }
-    intern_table = NULL;
 }
