@@ -1,4 +1,6 @@
 #include "gc.h"
+#include "util.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -31,12 +33,12 @@ static inline GCHeader* header_of(Value* v)
 void gc_init(void)
 {
     root_stack_capacity = 128;
-    root_stack = malloc(root_stack_capacity * sizeof(Value**));
+    root_stack = xmalloc(root_stack_capacity * sizeof(Value**));
 }
 
 void gc_register_root(Value** addr)
 {
-    RootNode* r = malloc(sizeof(RootNode));
+    RootNode* r = xmalloc(sizeof(RootNode));
     r->addr = addr;
     r->next = global_roots;
     global_roots = r;
@@ -46,7 +48,7 @@ void gc_push_root(Value** addr)
 {
     if (root_stack_size == root_stack_capacity) {
         root_stack_capacity *= 2;
-        root_stack = realloc(root_stack, root_stack_capacity * sizeof(Value**));
+        root_stack = xrealloc(root_stack, root_stack_capacity * sizeof(Value**));
     }
     root_stack[root_stack_size++] = addr;
 }
@@ -62,7 +64,7 @@ Value* gc_alloc(ValueType type)
         gc_collect();
     }
 
-    GCHeader* h = malloc(sizeof(GCHeader) + sizeof(Value));
+    GCHeader* h = xmalloc(sizeof(GCHeader) + sizeof(Value));
     h->marked = 0;
     h->next = all_objects;
     all_objects = h;

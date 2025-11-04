@@ -1,4 +1,5 @@
 #include "util.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,16 @@ char* read_file(const char* path)
 void* xmalloc(size_t n)
 {
     void* p = malloc(n);
+    if (!p) {
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
+    return p;
+}
+
+void* xrealloc(void* obj, size_t n)
+{
+    void* p = realloc(obj, n);
     if (!p) {
         fprintf(stderr, "Out of memory\n");
         exit(1);
