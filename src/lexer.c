@@ -190,6 +190,16 @@ Token lexer_next(Lexer* ctx)
     case '\'':
         lexer_advance(ctx);
         return token_create(TOK_QUOTE, "'", start_pos, ctx->cursor);
+    case '`':
+        lexer_advance(ctx);
+        return token_create(TOK_QUASIQUOTE, "`", start_pos, ctx->cursor);
+    case ',':
+        lexer_advance(ctx);
+        if (lexer_peek(ctx) == '@') {
+            lexer_advance(ctx);
+            return token_create(TOK_UNQUOTE_SPLICING, ",@", start_pos, ctx->cursor);
+        }
+        return token_create(TOK_UNQUOTE, ",", start_pos, ctx->cursor);
     case '"':
         return read_string(ctx);
     case '\0':

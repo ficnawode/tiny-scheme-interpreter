@@ -37,10 +37,16 @@ void intern_init(void)
     intern_table = NIL;
     gc_register_root(&intern_table);
 
-    intern("quote");
     intern("if");
     intern("define");
+    intern("define-macro");
     intern("lambda");
+
+    intern("quote");
+    intern("quasiquote");
+    intern("unquote");
+    intern("unquote-splicing");
+
     intern("#t");
 
     PrimTable prim_table = get_prims();

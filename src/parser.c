@@ -78,11 +78,11 @@ static Value* parse_list(Parser* p)
     }
 }
 
-static Value* parse_quote(Parser* p)
+static Value* wrap_with_symbol(const char* sym_name, Parser* p)
 {
     parser_advance(p);
 
-    Value* sym = intern("quote");
+    Value* sym = intern(sym_name);
     GC_PUSH(sym);
 
     Value* expr = parse_expr(p);
@@ -92,7 +92,6 @@ static Value* parse_quote(Parser* p)
 
     GC_POP();
     GC_POP();
-
     return result;
 }
 
@@ -103,7 +102,13 @@ Value* parse_expr(Parser* p)
         parser_advance(p);
         return parse_list(p);
     case TOK_QUOTE:
-        return parse_quote(p);
+        return wrap_with_symbol("quote", p);
+    case TOK_QUASIQUOTE:
+        return wrap_with_symbol("quasiquote", p);
+    case TOK_UNQUOTE:
+        return wrap_with_symbol("unquote", p);
+    case TOK_UNQUOTE_SPLICING:
+        return wrap_with_symbol("unquote-splicing", p);
     case TOK_NUMBER:
         long n = atol(p->current.lexeme);
         parser_advance(p);

@@ -60,6 +60,15 @@ Value* value_closure_create(Value* params, Value* body, Value* env)
     return v;
 }
 
+Value* value_macro_create(Value* params, Value* body, Value* env)
+{
+    Value* v = gc_alloc(VALUE_MACRO);
+    v->u.macro.params = params;
+    v->u.macro.body = body;
+    v->u.macro.env = env;
+    return v;
+}
+
 void value_print(Value* v);
 
 void print_list(Value* v)
@@ -112,6 +121,9 @@ void value_print(Value* v)
         break;
     case VALUE_CLOSURE:
         printf("<closure>");
+        break;
+    case VALUE_MACRO:
+        printf("<macro>");
         break;
     default:
         printf("<unknown>");
