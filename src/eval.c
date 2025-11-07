@@ -186,6 +186,27 @@ static EvalResult handle_define_macro(Value* expr, Value* env)
     return result_value(name);
 }
 
+static EvalResult handle_begin(Value* expr, Value* env)
+{
+    Value* body = CDR(expr);
+    Value* last_result = NIL;
+    GC_PUSH(last_result);
+
+    if (body == NIL) {
+        GC_POP();
+        return result_value(NIL);
+    }
+
+    while (CDR(body) != NIL) {
+        eval(CAR(body), env);
+        body = CDR(body);
+    }
+
+    Value* last_expr = CAR(body);
+    GC_POP();
+    return result_tail(last_expr, env);
+}
+
 typedef EvalResult (*SpecialFormFn)(Value*, Value*);
 
 typedef struct {
@@ -203,6 +224,7 @@ static EvalResult try_handle_special_form(Value* expr, Value* env)
         { "lambda", handle_lambda },
         { "load", handle_load_file },
         { "define-macro", handle_define_macro },
+        { "begin", handle_begin },
     };
     static const size_t special_forms_count = sizeof(special_forms) / sizeof(*special_forms);
 
@@ -423,20 +445,16 @@ static Value* expand_macro_call(Value* macro, Value* full_expr)
     Value* macro_body = macro->u.macro.body;
     Value* captured_env = macro->u.macro.env;
 
-    Value* arg_list = CONS(full_expr, NIL);
-    GC_PUSH(arg_list);
+    Value* arg_list = CDR(full_expr);
 
     Value* expansion_env = env_extend(captured_env, macro_params, arg_list);
-    GC_POP();
     GC_PUSH(expansion_env);
 
     Value* result = NIL;
-    GC_PUSH(result);
     for (Value* p = macro_body; p != NIL; p = CDR(p)) {
         result = eval(CAR(p), expansion_env);
     }
 
-    GC_POP();
     GC_POP();
     return result;
 }

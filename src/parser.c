@@ -25,38 +25,31 @@ Parser* parser_create(const char* source)
 
 void parser_cleanup(Parser* ctx)
 {
+    token_cleanup(&ctx->current);
     lexer_cleanup(ctx->lexer);
     free(ctx);
 }
 
-static Value* parse_dotted(Parser* p, Value* head, Value* tail)
+static Value* parse_list_dotted_tail(Parser* p, Value* head, Value* tail)
 {
     if (head == NIL) {
         fprintf(stderr, "Syntax error: dot operator in invalid context\n");
-        GC_POP();
-        GC_POP();
         return NULL;
     }
     parser_advance(p);
 
     Value* cdr_val = parse_expr(p);
     if (!cdr_val) {
-        GC_POP();
-        GC_POP();
         return NULL;
     }
 
     if (p->current.type != TOK_RPAREN) {
         fprintf(stderr, "Syntax error: expected ')' after dotted pair\n");
-        GC_POP();
-        GC_POP();
         return NULL;
     }
 
     parser_advance(p);
     CDR(tail) = cdr_val;
-    GC_POP();
-    GC_POP();
     return head;
 }
 
@@ -82,7 +75,10 @@ static Value* parse_list(Parser* p)
         }
 
         if (p->current.type == TOK_DOT) {
-            parse_dotted(p, head, tail);
+            head = parse_list_dotted_tail(p, head, tail);
+            GC_POP();
+            GC_POP();
+            return head;
         }
 
         Value* expr = parse_expr(p);
