@@ -233,21 +233,27 @@ Value* prim_newline(Value* args)
 
 PrimTable get_prims(void)
 {
-    static PrimDef prims[] = { { "+", prim_plus },
+    static PrimDef prims[] = {
+        { "+", prim_plus },
         { "-", prim_minus },
         { "*", prim_mul },
         { "/", prim_div },
         { "=", prim_eq },
+
         { "cons", prim_cons },
         { "car", prim_car },
         { "cdr", prim_cdr },
+
         { "eq?", prim_eqp },
         { "atom?", prim_atom },
-        { "display", prim_display },
-        { "newline", prim_newline },
+
         { "string?", prim_string_p },
         { "string-length", prim_string_length },
-        { "string-append", prim_string_append } };
+        { "string-append", prim_string_append },
+
+        { "display", prim_display },
+        { "newline", prim_newline }
+    };
     size_t prims_len = sizeof(prims) / sizeof(prims[0]);
     return (PrimTable) { .prims = prims, .count = prims_len };
 }
