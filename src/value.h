@@ -4,6 +4,7 @@ typedef enum {
     VALUE_NIL,
     VALUE_INT,
     VALUE_SYMBOL,
+    VALUE_STRING,
     VALUE_PAIR,
     VALUE_PRIMITIVE,
     VALUE_CLOSURE
@@ -18,6 +19,7 @@ struct Value {
     union {
         long integer;
         char* symbol;
+        char* string;
 
         struct
         {
@@ -41,6 +43,7 @@ Value* value_get_nil(void);
 
 Value* value_int_create(long n);
 Value* value_symbol_create(const char* s);
+Value* value_string_create(const char* s);
 Value* value_cons_create(Value* a, Value* d);
 Value* value_prim_create(const char* name, PrimFn f);
 Value* value_closure_create(Value* params, Value* body, Value* env);

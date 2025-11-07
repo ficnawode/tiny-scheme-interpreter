@@ -64,19 +64,15 @@ static Value* parse_list(Parser* p)
 
         if (p->current.type == TOK_RPAREN) {
             parser_advance(p);
-
             GC_POP();
             GC_POP();
-
             return head;
         }
 
         if (p->current.type == TOK_EOF) {
             fprintf(stderr, "Syntax error: missing ')'\n");
-
             GC_POP();
             GC_POP();
-
             return NULL;
         }
     }
@@ -106,29 +102,25 @@ Value* parse_expr(Parser* p)
     case TOK_LPAREN:
         parser_advance(p);
         return parse_list(p);
-
     case TOK_QUOTE:
         return parse_quote(p);
-
-    case TOK_NUMBER: {
+    case TOK_NUMBER:
         long n = atol(p->current.lexeme);
         parser_advance(p);
         return value_int_create(n);
-    }
-
-    case TOK_SYMBOL: {
+    case TOK_SYMBOL:
         Value* sym = intern(p->current.lexeme);
         parser_advance(p);
         return sym;
-    }
-
+    case TOK_STRING:
+        Value* str = value_string_create(p->current.lexeme);
+        parser_advance(p);
+        return str;
     case TOK_RPAREN:
         fprintf(stderr, "Unexpected ')'\n");
         return NIL;
-
     case TOK_EOF:
         return NULL;
-
     default:
         fprintf(stderr, "Unknown token\n");
         return NIL;

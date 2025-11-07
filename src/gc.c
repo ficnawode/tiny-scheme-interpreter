@@ -1,15 +1,26 @@
 #include "gc.h"
 #include "util.h"
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef struct GCHeader {
-    struct GCHeader* next;
+typedef struct GCObject {
+    struct GCObject* next;
     unsigned char marked;
-} GCHeader;
+    Value value;
+} GCObject;
 
-static GCHeader* all_objects = NULL;
+static GCObject* all_objects = NULL;
+
+#define container_of(ptr, type, member) ({                      \
+    const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+    (type *)( (char *)__mptr - offsetof(type, member) ); })
+
+static inline GCObject* gc_object_of(Value* v)
+{
+    return container_of(v, GCObject, value);
+}
 
 static size_t total_allocated_bytes = 0;
 static size_t gc_threshold = 500 * 1024;
@@ -24,11 +35,6 @@ static RootNode* global_roots = NULL;
 static Value*** root_stack = NULL;
 static size_t root_stack_size = 0;
 static size_t root_stack_capacity = 0;
-
-static inline GCHeader* header_of(Value* v)
-{
-    return (GCHeader*)(((char*)v) - sizeof(GCHeader));
-}
 
 void gc_init(void)
 {
@@ -64,14 +70,15 @@ Value* gc_alloc(ValueType type)
         gc_collect();
     }
 
-    GCHeader* h = xmalloc(sizeof(GCHeader) + sizeof(Value));
-    h->marked = 0;
-    h->next = all_objects;
-    all_objects = h;
+    GCObject* obj = xmalloc(sizeof(GCObject));
 
-    total_allocated_bytes += sizeof(GCHeader) + sizeof(Value);
+    obj->marked = 0;
+    obj->next = all_objects;
+    all_objects = obj;
 
-    Value* v = (Value*)(h + 1);
+    total_allocated_bytes += sizeof(GCObject);
+
+    Value* v = &obj->value;
     v->type = type;
     return v;
 }
@@ -80,10 +87,11 @@ static void mark(Value* v)
 {
     if (!v || v->type == VALUE_NIL)
         return;
-    GCHeader* h = header_of(v);
-    if (h->marked)
+
+    GCObject* obj = gc_object_of(v);
+    if (obj->marked)
         return;
-    h->marked = 1;
+    obj->marked = 1;
 
     switch (v->type) {
     case VALUE_PAIR:
@@ -100,23 +108,39 @@ static void mark(Value* v)
     }
 }
 
+static void free_value_internals(Value* v)
+{
+    switch (v->type) {
+    case VALUE_SYMBOL:
+        free(v->u.symbol);
+        return;
+    case VALUE_STRING:
+        free(v->u.string);
+        return;
+    default:
+    }
+}
+
+static void free_gc_object(GCObject* o)
+{
+    free_value_internals(&o->value);
+    free(o);
+}
+
 static void sweep(void)
 {
     size_t bytes_in_use = 0;
-    GCHeader** p = &all_objects;
+    GCObject** p = &all_objects;
     while (*p) {
-        GCHeader* h = *p;
-        Value* v = (Value*)(h + 1);
+        GCObject* current = *p;
 
-        if (!h->marked) {
-            *p = h->next;
-            if (v->type == VALUE_SYMBOL)
-                free(v->u.symbol);
-            free(h);
+        if (!current->marked) {
+            *p = current->next;
+            free_gc_object(current);
         } else {
-            h->marked = 0;
-            bytes_in_use += sizeof(GCHeader) + sizeof(Value);
-            p = &h->next;
+            current->marked = 0;
+            bytes_in_use += sizeof(GCObject);
+            p = &current->next;
         }
     }
     total_allocated_bytes = bytes_in_use;
@@ -135,18 +159,10 @@ void gc_collect(void)
 
 void gc_destroy(void)
 {
-    GCHeader* current = all_objects;
+    GCObject* current = all_objects;
     while (current) {
-        GCHeader* next = current->next;
-
-        Value* v = (Value*)(current + 1);
-
-        if (v->type == VALUE_SYMBOL) {
-            free(v->u.symbol);
-        }
-
-        free(current);
-
+        GCObject* next = current->next;
+        free_gc_object(current);
         current = next;
     }
 
@@ -156,6 +172,5 @@ void gc_destroy(void)
         free(r);
         r = next;
     }
-
     free(root_stack);
 }
