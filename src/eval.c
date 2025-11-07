@@ -89,8 +89,9 @@ static Value* eval_args(Value* list, Value* env)
     return head;
 }
 
-static EvalResult handle_quote(Value* expr)
+static EvalResult handle_quote(Value* expr, Value* env)
 {
+    (void)env;
     return result_value(CADR(expr));
 }
 

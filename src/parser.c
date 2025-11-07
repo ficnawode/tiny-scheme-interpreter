@@ -29,6 +29,37 @@ void parser_cleanup(Parser* ctx)
     free(ctx);
 }
 
+static Value* parse_dotted(Parser* p, Value* head, Value* tail)
+{
+    if (head == NIL) {
+        fprintf(stderr, "Syntax error: dot operator in invalid context\n");
+        GC_POP();
+        GC_POP();
+        return NULL;
+    }
+    parser_advance(p);
+
+    Value* cdr_val = parse_expr(p);
+    if (!cdr_val) {
+        GC_POP();
+        GC_POP();
+        return NULL;
+    }
+
+    if (p->current.type != TOK_RPAREN) {
+        fprintf(stderr, "Syntax error: expected ')' after dotted pair\n");
+        GC_POP();
+        GC_POP();
+        return NULL;
+    }
+
+    parser_advance(p);
+    CDR(tail) = cdr_val;
+    GC_POP();
+    GC_POP();
+    return head;
+}
+
 static Value* parse_list(Parser* p)
 {
     if (p->current.type == TOK_RPAREN) {
@@ -43,6 +74,17 @@ static Value* parse_list(Parser* p)
     GC_PUSH(tail);
 
     for (;;) {
+        if (p->current.type == TOK_RPAREN) {
+            parser_advance(p);
+            GC_POP();
+            GC_POP();
+            return head;
+        }
+
+        if (p->current.type == TOK_DOT) {
+            parse_dotted(p, head, tail);
+        }
+
         Value* expr = parse_expr(p);
         if (!expr) {
             GC_POP();
@@ -60,13 +102,6 @@ static Value* parse_list(Parser* p)
         } else {
             CDR(tail) = node;
             tail = node;
-        }
-
-        if (p->current.type == TOK_RPAREN) {
-            parser_advance(p);
-            GC_POP();
-            GC_POP();
-            return head;
         }
 
         if (p->current.type == TOK_EOF) {

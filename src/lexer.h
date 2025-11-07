@@ -17,6 +17,7 @@ typedef enum {
     TOK_QUASIQUOTE,
     TOK_UNQUOTE,
     TOK_UNQUOTE_SPLICING,
+    TOK_DOT,
     TOK_SYMBOL,
     TOK_STRING,
     TOK_NUMBER,
