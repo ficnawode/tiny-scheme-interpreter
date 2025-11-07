@@ -28,6 +28,13 @@ Value* value_symbol_create(const char* s)
     return v;
 }
 
+Value* value_string_create(const char* s)
+{
+    Value* v = gc_alloc(VALUE_STRING);
+    v->u.string = xstrdup(s);
+    return v;
+}
+
 Value* value_cons_create(Value* a, Value* d)
 {
     Value* v = gc_alloc(VALUE_PAIR);
@@ -93,6 +100,9 @@ void value_print(Value* v)
         break;
     case VALUE_SYMBOL:
         printf("%s", v->u.symbol);
+        break;
+    case VALUE_STRING:
+        printf("%s", v->u.string);
         break;
     case VALUE_PAIR:
         print_list(v);

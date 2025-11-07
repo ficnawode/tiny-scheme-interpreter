@@ -15,6 +15,7 @@ typedef enum {
     TOK_RPAREN,
     TOK_QUOTE,
     TOK_SYMBOL,
+    TOK_STRING,
     TOK_NUMBER,
     TOK_EOF,
     TOK_ERROR

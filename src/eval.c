@@ -150,7 +150,7 @@ static EvalResult try_handle_special_form(Value* expr, Value* env)
 {
     Value* op = CAR(expr);
 
-    if (!(op && op->type == VALUE_SYMBOL))
+    if (!op || op->type != VALUE_SYMBOL)
         return result_no_match();
 
     if (value_is_symbol_name(op, "quote"))
@@ -248,6 +248,7 @@ static EvalResult eval_dispatch(Value* expr, Value* env)
     case VALUE_NIL:
     case VALUE_PRIMITIVE:
     case VALUE_CLOSURE:
+    case VALUE_STRING:
         return result_value(expr);
     case VALUE_SYMBOL:
         Value* v = eval_symbol(expr, env);
@@ -262,7 +263,7 @@ static EvalResult eval_dispatch(Value* expr, Value* env)
 
 Value* eval(Value* expr, Value* env)
 {
-    while (1) {
+    for (;;) {
         EvalResult r = eval_dispatch(expr, env);
         if (r.kind == RES_VALUE) {
             return r.v.value;

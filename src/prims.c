@@ -2,9 +2,12 @@
 #include "eval.h"
 #include "intern.h"
 #include "pair.h"
+#include "util.h"
 #include "value.h"
 
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int list_length(Value* args)
@@ -17,13 +20,22 @@ static int list_length(Value* args)
     return n;
 }
 
-static Value* expect_type(ValueType type, Value* v, const char* name)
+static bool expect_type(ValueType type, Value* v, const char* name)
 {
     if (v->type != type) {
-        fprintf(stderr, "%s: expected type %d\n", name, type);
-        return NULL;
+        fprintf(stderr, "%s: expected type %d but got %d \n", name, type, v->type);
+        return false;
     }
-    return v;
+    return true;
+}
+
+static bool expect_n_args(Value* args, int n_args_expected, const char* name)
+{
+    if (list_length(args) != n_args_expected) {
+        fprintf(stderr, "%s: expects %d arguments\n", name, n_args_expected);
+        return false;
+    }
+    return true;
 }
 
 Value* prim_plus(Value* args)
@@ -107,8 +119,7 @@ Value* prim_div(Value* args)
 
 Value* prim_eq(Value* args)
 {
-    if (list_length(args) != 2) {
-        fprintf(stderr, "=: expects 2 arguments\n");
+    if (!expect_n_args(args, 2, "=")) {
         return NIL;
     }
     Value* a = CAR(args);
@@ -121,8 +132,7 @@ Value* prim_eq(Value* args)
 
 Value* prim_cons(Value* args)
 {
-    if (list_length(args) != 2) {
-        fprintf(stderr, "cons expects 2 args\n");
+    if (!expect_n_args(args, 2, "cons")) {
         return NIL;
     }
     return value_cons_create(CAR(args), CADR(args));
@@ -130,12 +140,8 @@ Value* prim_cons(Value* args)
 
 Value* prim_car(Value* args)
 {
-    if (list_length(args) != 1) {
-        fprintf(stderr, "car expects 1 arg\n");
-        return NIL;
-    }
-    if (CAR(args)->type != VALUE_PAIR) {
-        fprintf(stderr, "car: expected pair\n");
+    if (!expect_n_args(args, 1, "car")
+        || !expect_type(VALUE_PAIR, CAR(args), "car")) {
         return NIL;
     }
     return CAR(CAR(args));
@@ -143,12 +149,8 @@ Value* prim_car(Value* args)
 
 Value* prim_cdr(Value* args)
 {
-    if (list_length(args) != 1) {
-        fprintf(stderr, "cdr expects 1 arg\n");
-        return NIL;
-    }
-    if (CAR(args)->type != VALUE_PAIR) {
-        fprintf(stderr, "cdr: expected pair\n");
+    if (!expect_n_args(args, 1, "cdr")
+        || !expect_type(VALUE_PAIR, CAR(args), "cdr")) {
         return NIL;
     }
     return CDR(CAR(args));
@@ -156,8 +158,7 @@ Value* prim_cdr(Value* args)
 
 Value* prim_eqp(Value* args)
 {
-    if (list_length(args) != 2) {
-        fprintf(stderr, "eq? expects 2 args\n");
+    if (!expect_n_args(args, 2, "eq?")) {
         return NIL;
     }
     Value* a = CAR(args);
@@ -167,12 +168,52 @@ Value* prim_eqp(Value* args)
 
 Value* prim_atom(Value* args)
 {
-    if (list_length(args) != 1) {
-        fprintf(stderr, "atom? expects 1 arg\n");
+    if (!expect_n_args(args, 1, "atom?")) {
         return NIL;
     }
     Value* a = CAR(args);
     return (a == NIL || a->type != VALUE_PAIR) ? intern("#t") : NIL;
+}
+
+Value* prim_string_p(Value* args)
+{
+    if (!expect_n_args(args, 1, "string?")) {
+        return NIL;
+    }
+    return (CAR(args)->type == VALUE_STRING) ? intern("#t") : NIL;
+}
+
+Value* prim_string_length(Value* args)
+{
+    Value* str = CAR(args);
+    if (!expect_n_args(args, 1, "string-length")
+        || !expect_type(VALUE_STRING, str, "string-length")) {
+        return NIL;
+    }
+    return value_int_create(strlen(str->u.string));
+}
+
+Value* prim_string_append(Value* args)
+{
+    size_t total_len = 0;
+    for (Value* p = args; p != NIL; p = CDR(p)) {
+        Value* str = CAR(p);
+        if (!expect_type(VALUE_STRING, str, "string-append")) {
+            return NIL;
+        }
+        total_len += strlen(str->u.string);
+    }
+
+    char* result_str = xmalloc(total_len + 1);
+    result_str[0] = '\0';
+
+    for (Value* p = args; p != NIL; p = CDR(p)) {
+        strcat(result_str, CAR(p)->u.string);
+    }
+
+    Value* result = value_string_create(result_str);
+    free(result_str);
+    return result;
 }
 
 Value* prim_display(Value* args)
@@ -203,8 +244,10 @@ PrimTable get_prims(void)
         { "eq?", prim_eqp },
         { "atom?", prim_atom },
         { "display", prim_display },
-        { "newline", prim_newline } };
-
+        { "newline", prim_newline },
+        { "string?", prim_string_p },
+        { "string-length", prim_string_length },
+        { "string-append", prim_string_append } };
     size_t prims_len = sizeof(prims) / sizeof(prims[0]);
     return (PrimTable) { .prims = prims, .count = prims_len };
 }

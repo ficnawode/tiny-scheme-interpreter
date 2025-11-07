@@ -41,11 +41,25 @@ static void lexer_advance(Lexer* ctx)
     }
     ctx->buffer.index++;
 }
-
-static void skip_whitespace(Lexer* ctx)
+static void skip_to_next_line(Lexer* ctx)
 {
-    while (isspace((unsigned char)lexer_peek(ctx))) {
+    while (lexer_peek(ctx) != '\n' && lexer_peek(ctx) != '\0') {
         lexer_advance(ctx);
+    }
+}
+
+static void skip_comments_and_whitespace(Lexer* ctx)
+{
+    for (;;) {
+        char c = lexer_peek(ctx);
+
+        if (isspace((unsigned char)c)) {
+            lexer_advance(ctx);
+        } else if (c == ';') {
+            skip_to_next_line(ctx);
+        } else {
+            break;
+        }
     }
 }
 
@@ -74,7 +88,7 @@ void token_cleanup(Token* t)
 
 static bool is_terminator(char c)
 {
-    return c == '\0' || isspace((unsigned char)c) || c == '(' || c == ')' || c == '\'';
+    return c == '\0' || isspace((unsigned char)c) || c == '(' || c == ')' || c == '\'' || c == '"';
 }
 
 static bool is_number_lexeme(const char* s)
@@ -106,9 +120,63 @@ static Token read_word(Lexer* ctx)
     return tok;
 }
 
+#define BUFSIZE 1024
+static Token read_string(Lexer* ctx)
+{
+    Position start_pos = ctx->cursor;
+    lexer_advance(ctx);
+
+    char buffer[BUFSIZE];
+    int i = 0;
+    for (;;) {
+        char c = lexer_peek(ctx);
+
+        if (c == '\0') {
+            return token_create(TOK_ERROR, "Unterminated string literal",
+                start_pos, ctx->cursor);
+        }
+
+        if (c == '"') {
+            lexer_advance(ctx);
+            break;
+        }
+
+        if (i >= BUFSIZE - 1) {
+            return token_create(TOK_ERROR, "String literal too long",
+                start_pos, ctx->cursor);
+        }
+
+        if (c == '\\') {
+            lexer_advance(ctx);
+            c = lexer_peek(ctx);
+
+            switch (c) {
+            case 'n':
+                c = '\n';
+                break;
+            case 't':
+                c = '\t';
+                break;
+            case '"':
+                c = '"';
+                break;
+            case '\\':
+                c = '\\';
+                break;
+            }
+        }
+
+        buffer[i++] = c;
+        lexer_advance(ctx);
+    }
+
+    buffer[i] = '\0';
+    return token_create(TOK_STRING, buffer, start_pos, ctx->cursor);
+}
+
 Token lexer_next(Lexer* ctx)
 {
-    skip_whitespace(ctx);
+    skip_comments_and_whitespace(ctx);
     Position start_pos = ctx->cursor;
     char c = lexer_peek(ctx);
 
@@ -122,6 +190,8 @@ Token lexer_next(Lexer* ctx)
     case '\'':
         lexer_advance(ctx);
         return token_create(TOK_QUOTE, "'", start_pos, ctx->cursor);
+    case '"':
+        return read_string(ctx);
     case '\0':
         return token_create(TOK_EOF, NULL, start_pos, start_pos);
     default:
