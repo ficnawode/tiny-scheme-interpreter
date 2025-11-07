@@ -146,6 +146,24 @@ static EvalResult handle_lambda(Value* expr, Value* env)
     return result_value(closure);
 }
 
+static EvalResult handle_load_file(Value* expr, Value* env)
+{
+    Value* filename_expr = CADR(expr);
+    if (filename_expr == NIL) {
+        fprintf(stderr, "load: expected a filename\n");
+        return result_value(NIL);
+    }
+
+    Value* filename_val = eval(filename_expr, env);
+    if (filename_val->type != VALUE_STRING) {
+        fprintf(stderr, "load: argument must be a string\n");
+        return result_value(NIL);
+    }
+
+    Value* result = eval_file(filename_val->u.string, env);
+    return result_value(result);
+}
+
 static EvalResult try_handle_special_form(Value* expr, Value* env)
 {
     Value* op = CAR(expr);
@@ -164,6 +182,9 @@ static EvalResult try_handle_special_form(Value* expr, Value* env)
 
     if (value_is_symbol_name(op, "lambda"))
         return handle_lambda(expr, env);
+
+    if (value_is_symbol_name(op, "load"))
+        return handle_load_file(expr, env);
 
     return result_no_match();
 }
