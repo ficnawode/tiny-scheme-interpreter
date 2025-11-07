@@ -41,11 +41,25 @@ static void lexer_advance(Lexer* ctx)
     }
     ctx->buffer.index++;
 }
-
-static void skip_whitespace(Lexer* ctx)
+static void skip_to_next_line(Lexer* ctx)
 {
-    while (isspace((unsigned char)lexer_peek(ctx))) {
+    while (lexer_peek(ctx) != '\n' && lexer_peek(ctx) != '\0') {
         lexer_advance(ctx);
+    }
+}
+
+static void skip_comments_and_whitespace(Lexer* ctx)
+{
+    for (;;) {
+        char c = lexer_peek(ctx);
+
+        if (isspace((unsigned char)c)) {
+            lexer_advance(ctx);
+        } else if (c == ';') {
+            skip_to_next_line(ctx);
+        } else {
+            break;
+        }
     }
 }
 
@@ -162,7 +176,7 @@ static Token read_string(Lexer* ctx)
 
 Token lexer_next(Lexer* ctx)
 {
-    skip_whitespace(ctx);
+    skip_comments_and_whitespace(ctx);
     Position start_pos = ctx->cursor;
     char c = lexer_peek(ctx);
 

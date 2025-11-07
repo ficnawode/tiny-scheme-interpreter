@@ -66,11 +66,12 @@
 (newline)
 (display escapes)
 (newline)
-(display "  Length of escape string (should be 58): ")
+(display "  Length of escape string (should be 57): ")
 (display (string-length escapes))
 (newline)
 (newline)
 
+; this is a comment
 
 (display "Test 6: Using strings with functions")
 (newline)
