@@ -186,7 +186,7 @@ Value* prim_string_p(Value* args)
 Value* prim_string_length(Value* args)
 {
     Value* str = CAR(args);
-    if (!expect_n_args(args, 1, "cdr")
+    if (!expect_n_args(args, 1, "string-length")
         || !expect_type(VALUE_STRING, str, "string-length")) {
         return NIL;
     }
