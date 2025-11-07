@@ -129,6 +129,31 @@ Value* prim_eq(Value* args)
     }
     return (a->u.integer == b->u.integer) ? intern("#t") : NIL;
 }
+Value* prim_lt(Value* args)
+{
+    if (!expect_n_args(args, 2, "<")) {
+        return NIL;
+    }
+    Value* a = CAR(args);
+    Value* b = CADR(args);
+    if (a->type != VALUE_INT || b->type != VALUE_INT) {
+        return NIL;
+    }
+    return (a->u.integer < b->u.integer) ? intern("#t") : NIL;
+}
+
+Value* prim_gt(Value* args)
+{
+    if (!expect_n_args(args, 2, ">")) {
+        return NIL;
+    }
+    Value* a = CAR(args);
+    Value* b = CADR(args);
+    if (a->type != VALUE_INT || b->type != VALUE_INT) {
+        return NIL;
+    }
+    return (a->u.integer > b->u.integer) ? intern("#t") : NIL;
+}
 
 Value* prim_cons(Value* args)
 {
@@ -273,6 +298,8 @@ PrimTable get_prims(void)
         { "*", prim_mul },
         { "/", prim_div },
         { "=", prim_eq },
+        { ">", prim_gt },
+        { "<", prim_lt },
 
         { "cons", prim_cons },
         { "car", prim_car },

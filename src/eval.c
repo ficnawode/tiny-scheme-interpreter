@@ -207,6 +207,31 @@ static EvalResult handle_begin(Value* expr, Value* env)
     return result_tail(last_expr, env);
 }
 
+static EvalResult handle_set_bang(Value* expr, Value* env)
+{
+    Value* target = CADR(expr);
+    if (target->type != VALUE_SYMBOL) {
+        fprintf(stderr, "set!: can only set symbols\n");
+        return result_value(NIL);
+    }
+
+    Value* value_expr = CADDR(expr);
+    Value* result = eval(value_expr, env);
+
+    for (Value* frame = env; frame != NIL; frame = CDR(frame)) {
+        for (Value* pair = CAR(frame); pair != NIL; pair = CDR(pair)) {
+            Value* binding = CAR(pair);
+            if (strcmp(CAR(binding)->u.symbol, target->u.symbol) == 0) {
+                CDR(binding) = result;
+                return result_value(result);
+            }
+        }
+    }
+
+    fprintf(stderr, "set!: symbol '%s' not bound\n", target->u.symbol);
+    return result_value(NIL);
+}
+
 typedef EvalResult (*SpecialFormFn)(Value*, Value*);
 
 typedef struct {
@@ -225,6 +250,7 @@ static EvalResult try_handle_special_form(Value* expr, Value* env)
         { "load", handle_load_file },
         { "define-macro", handle_define_macro },
         { "begin", handle_begin },
+        { "set!", handle_set_bang },
     };
     static const size_t special_forms_count = sizeof(special_forms) / sizeof(*special_forms);
 
