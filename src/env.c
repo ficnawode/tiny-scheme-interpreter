@@ -3,6 +3,7 @@
 #include "pair.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 static Value* lookup_in_frame(Value* frame, Value* sym)
@@ -41,7 +42,11 @@ Value* env_extend(Value* env, Value* params, Value* args)
     Value* frame = NIL;
     GC_PUSH(frame);
 
-    while (params != NIL) {
+    while (params != NIL && params->type == VALUE_PAIR) {
+        if (args == NIL) {
+            fprintf(stderr, "Error: not enough arguments provided\n");
+            break;
+        }
         Value* binding = CONS(CAR(params), CAR(args));
         GC_PUSH(binding);
         frame = CONS(binding, frame);
@@ -50,10 +55,14 @@ Value* env_extend(Value* env, Value* params, Value* args)
         args = CDR(args);
     }
 
-    Value* new_env = CONS(frame, env);
-    GC_PUSH(new_env);
+    if (params != NIL) {
+        Value* binding = CONS(params, args);
+        GC_PUSH(binding);
+        frame = CONS(binding, frame);
+        GC_POP();
+    }
 
-    GC_POP();
+    Value* new_env = CONS(frame, env);
     GC_POP();
 
     return new_env;

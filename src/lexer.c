@@ -112,6 +112,13 @@ static Token read_word(Lexer* ctx)
     int len = ctx->buffer.index - start_index;
     char* lex = copy_substr(start, len);
 
+    if (strcmp(lex, ".") == 0) {
+        Position end_pos = ctx->cursor;
+        Token tok = token_create(TOK_DOT, ".", start_pos, end_pos);
+        free(lex);
+        return tok;
+    }
+
     TokenType type = is_number_lexeme(lex) ? TOK_NUMBER : TOK_SYMBOL;
     Position end_pos = ctx->cursor;
 
@@ -190,6 +197,22 @@ Token lexer_next(Lexer* ctx)
     case '\'':
         lexer_advance(ctx);
         return token_create(TOK_QUOTE, "'", start_pos, ctx->cursor);
+    case '`':
+        lexer_advance(ctx);
+        return token_create(TOK_QUASIQUOTE, "`", start_pos, ctx->cursor);
+    case ',':
+        lexer_advance(ctx);
+        if (lexer_peek(ctx) == '@') {
+            lexer_advance(ctx);
+            return token_create(TOK_UNQUOTE_SPLICING, ",@", start_pos, ctx->cursor);
+        }
+        return token_create(TOK_UNQUOTE, ",", start_pos, ctx->cursor);
+    case '.':
+        if (is_terminator(ctx->buffer.data[ctx->buffer.index + 1])) {
+            lexer_advance(ctx);
+            return token_create(TOK_DOT, ".", start_pos, ctx->cursor);
+        }
+        return read_word(ctx);
     case '"':
         return read_string(ctx);
     case '\0':

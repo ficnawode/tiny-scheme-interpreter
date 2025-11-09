@@ -129,6 +129,31 @@ Value* prim_eq(Value* args)
     }
     return (a->u.integer == b->u.integer) ? intern("#t") : NIL;
 }
+Value* prim_lt(Value* args)
+{
+    if (!expect_n_args(args, 2, "<")) {
+        return NIL;
+    }
+    Value* a = CAR(args);
+    Value* b = CADR(args);
+    if (a->type != VALUE_INT || b->type != VALUE_INT) {
+        return NIL;
+    }
+    return (a->u.integer < b->u.integer) ? intern("#t") : NIL;
+}
+
+Value* prim_gt(Value* args)
+{
+    if (!expect_n_args(args, 2, ">")) {
+        return NIL;
+    }
+    Value* a = CAR(args);
+    Value* b = CADR(args);
+    if (a->type != VALUE_INT || b->type != VALUE_INT) {
+        return NIL;
+    }
+    return (a->u.integer > b->u.integer) ? intern("#t") : NIL;
+}
 
 Value* prim_cons(Value* args)
 {
@@ -156,7 +181,7 @@ Value* prim_cdr(Value* args)
     return CDR(CAR(args));
 }
 
-Value* prim_eqp(Value* args)
+Value* prim_eq_p(Value* args)
 {
     if (!expect_n_args(args, 2, "eq?")) {
         return NIL;
@@ -166,7 +191,7 @@ Value* prim_eqp(Value* args)
     return (a == b) ? intern("#t") : NIL;
 }
 
-Value* prim_atom(Value* args)
+Value* prim_atom_p(Value* args)
 {
     if (!expect_n_args(args, 1, "atom?")) {
         return NIL;
@@ -216,6 +241,31 @@ Value* prim_string_append(Value* args)
     return result;
 }
 
+Value* prim_gensym(Value* args)
+{
+    static unsigned long gensym_counter = 0;
+    const char* prefix = "__GENSYM";
+    int n_args = list_length(args);
+
+    if (n_args > 1) {
+        fprintf(stderr, "gensym: expects 0 or 1 arguments\n");
+        return NIL;
+    }
+
+    if (n_args == 1) {
+        Value* prefix_val = CAR(args);
+        if (!expect_type(VALUE_STRING, prefix_val, "gensym")) {
+            return NIL;
+        }
+        prefix = prefix_val->u.string;
+    }
+
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s__%lu", prefix, gensym_counter++);
+
+    return value_symbol_create(buffer);
+}
+
 Value* prim_display(Value* args)
 {
     for (Value* p = args; p != value_get_nil(); p = p->u.pair.cdr) {
@@ -231,6 +281,15 @@ Value* prim_newline(Value* args)
     return value_get_nil();
 }
 
+Value* prim_null_p(Value* args)
+{
+    if (!expect_n_args(args, 1, "null?")) {
+        return NIL;
+    }
+    Value* a = CAR(args);
+    return (a == NIL) ? intern("#t") : NIL;
+}
+
 PrimTable get_prims(void)
 {
     static PrimDef prims[] = {
@@ -239,17 +298,22 @@ PrimTable get_prims(void)
         { "*", prim_mul },
         { "/", prim_div },
         { "=", prim_eq },
+        { ">", prim_gt },
+        { "<", prim_lt },
 
         { "cons", prim_cons },
         { "car", prim_car },
         { "cdr", prim_cdr },
 
-        { "eq?", prim_eqp },
-        { "atom?", prim_atom },
+        { "eq?", prim_eq_p },
+        { "atom?", prim_atom_p },
+        { "null?", prim_null_p },
 
         { "string?", prim_string_p },
         { "string-length", prim_string_length },
         { "string-append", prim_string_append },
+
+        { "gensym", prim_gensym },
 
         { "display", prim_display },
         { "newline", prim_newline }
