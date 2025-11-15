@@ -11,6 +11,9 @@ static Value* lookup_in_frame(Value* frame, Value* sym)
 {
     for (Value* pair = frame; pair != NIL; pair = CDR(pair)) {
         Value* binding = CAR(pair);
+        if (!CAR(binding) || !CAR(binding)->u.symbol || !sym->u.symbol) {
+            return NULL;
+        }
         if (strcmp(CAR(binding)->u.symbol, sym->u.symbol) == 0) {
             return CDR(binding);
         }
