@@ -40,7 +40,7 @@
 
 (define-macro (cond . clauses)
   (if (null? clauses)
-      '()
+      (#f)
       (let ((cl (car clauses)))
         (if (eq? (car cl) 'else)
             `(begin ,@(cdr cl))
@@ -57,41 +57,38 @@
                   (reverse-iter (cdr original) (cons (car original) reversed-so-far))))))
     (reverse-iter lst '())))
 
+
 (define (equal? a b)
   (cond
     ((and (number? a) (number? b))
      (= a b))
-
     ((and (atom? a) (atom? b))
      (eq? a b))
-
     ((and (not (atom? a)) (not (atom? b)))
      (and (equal? (car a) (car b))
           (equal? (cdr a) (cdr b))))
-
-    (else '())))
-
+    (else #f)))
 
 
 (define-macro (not expr)
-  `(if ,expr '() #t))
+  `(if ,expr #f #t))
 
 (define-macro (and . clauses)
   (if (null? clauses)
-      '#t
+      #t
       (if (null? (cdr clauses))
           (car clauses)
           `(if ,(car clauses)
                (and ,@(cdr clauses))
-               '()))))
-
+               #f))))
 
 (define-macro (or . clauses)
   (if (null? clauses)
-      ''() 
+      #f
       (if (null? (cdr clauses))
-          (car clauses) 
-          `(let* ((result ,(car clauses)))
+          (car clauses)
+          `(let ((result ,(car clauses)))
              (if result
-                 result 
-                 (or ,@(cdr clauses))))))) 
+                 result
+                 (or ,@(cdr clauses)))))))
+

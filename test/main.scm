@@ -33,13 +33,17 @@
   (assert (not (atom? '(a b))))
   (assert (string? "hello"))
   (assert (not (string? 'hello)))
+  (assert (not (null? #f)))
+  (assert (eq? #f #f))
 )
 
 (declare-test primitives-equality
   (assert (eq? 'a 'a))
   (assert (not (eq? 'a 'b)))
   (assert (eq? #t #t))
-  (assert (not (eq? '(1 2) '(1 2)))))
+  (assert (not (eq? '(1 2) '(1 2))))
+  (assert (not (eq? #f '())))
+  )
 
 
 (declare-test scope-lexical-closures
@@ -76,7 +80,8 @@
   (assert-eq 1 (if 'true 1 2))
   (assert-eq 1 (if 0 1 2))
   (assert-eq 1 (if "hello" 1 2))
-  (assert-eq 2 (if '() 1 2))
+  (assert-eq 1 (if '() 1 2))
+  (assert-eq 2 (if #f 1 2))
   )
 
 (declare-test special-form-lambda-and-application
@@ -145,9 +150,24 @@
   (assert-equal? 'else-clause (cond ((< 1 0) 1)
                                 ((< 2 1) 2)
                                 (else 'else-clause)))
+  )
 
-  (assert (not (and #t #t '() #t))) 
+(declare-test stdlib-boolean-ops
+  (assert (not #f))
+  (assert (not (not #t)))
+  (assert (and #t #t))
+  (assert (not (and #t #f)))
+  (assert (or #t #f))
+  (assert (not (or #f #f)))
+  (assert (equal? #t #t))
+  (assert (not (equal? #t #f)))
 
-  (assert-equal? 'is-true (or '() '() 'is-true 'another-true)))
+  (assert (and #t #t '() #t))
+  (assert (not (and #t #t #f #t)))
+
+  (assert (or #f '()) )
+  (assert-equal? 'is-true (or #f #f 'is-true 'another-true))
+  (assert-equal? #f (or #f #f #f))
+)
 
 (run-all-tests)
