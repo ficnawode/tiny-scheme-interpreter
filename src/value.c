@@ -91,7 +91,10 @@ void print_list(Value* v)
 
 bool value_is_true(Value* v)
 {
-    return v != NIL;
+    if (v && v->type == VALUE_SYMBOL && strcmp(v->u.symbol, "#f") == 0) {
+        return false;
+    }
+    return true;
 }
 
 void value_print(Value* v)

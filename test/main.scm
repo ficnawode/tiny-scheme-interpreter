@@ -33,13 +33,17 @@
   (assert (not (atom? '(a b))))
   (assert (string? "hello"))
   (assert (not (string? 'hello)))
+  (assert (not (null? #f)))
+  (assert (eq? #f #f))
 )
 
 (declare-test primitives-equality
   (assert (eq? 'a 'a))
   (assert (not (eq? 'a 'b)))
   (assert (eq? #t #t))
-  (assert (not (eq? '(1 2) '(1 2)))))
+  (assert (not (eq? '(1 2) '(1 2))))
+  (assert (not (eq? #f '())))
+  )
 
 
 (declare-test scope-lexical-closures
@@ -76,7 +80,8 @@
   (assert-eq 1 (if 'true 1 2))
   (assert-eq 1 (if 0 1 2))
   (assert-eq 1 (if "hello" 1 2))
-  (assert-eq 2 (if '() 1 2))
+  (assert-eq 1 (if '() 1 2))
+  (assert-eq 2 (if #f 1 2))
   )
 
 (declare-test special-form-lambda-and-application
@@ -137,17 +142,44 @@
   (assert (eq? (car (reverse '(a b))) 'b)))
 
 
-(declare-test stdlib-cond-and-or
+(declare-test stdlib-cond
   (assert-equal? 'greater (cond ((> 3 2) 'greater)
-                            ((< 3 2) 'less)))
+                                ((< 3 2) 'less)))
   (assert-equal? 'equal (cond ((> 3 4) 'greater)
-                          ((= 3 3) 'equal)))
+                              ((= 3 3) 'equal)))
   (assert-equal? 'else-clause (cond ((< 1 0) 1)
-                                ((< 2 1) 2)
-                                (else 'else-clause)))
+                                    ((< 2 1) 2)
+                                    (else 'else-clause)))
+  (assert-equal? #f (cond))
+  (assert-equal? 42 (cond (42)))
+  (assert-equal? #f (cond (#f)))
+  (assert-equal? 'b (cond ((assoc 'y '((x a) (y b))) => cadr) (else #f)))
+  (assert-equal? #f (cond ((assoc 'z '((x a) (y b))) => cadr)(else #f)))
 
-  (assert (not (and #t #t '() #t))) 
+  ; If I implement assert-error:
+  ; (cond (else) )
+  ; (cond (else 1) (2))
+  ; (cond (test =>))
+  ; (cond (test => proc extra))
+  ; (cond 'not-a-list)
+)
 
-  (assert-equal? 'is-true (or '() '() 'is-true 'another-true)))
+(declare-test stdlib-boolean-ops
+  (assert (not #f))
+  (assert (not (not #t)))
+  (assert (and #t #t))
+  (assert (not (and #t #f)))
+  (assert (or #t #f))
+  (assert (not (or #f #f)))
+  (assert (equal? #t #t))
+  (assert (not (equal? #t #f)))
+
+  (assert (and #t #t '() #t))
+  (assert (not (and #t #t #f #t)))
+
+  (assert (or #f '()) )
+  (assert-equal? 'is-true (or #f #f 'is-true 'another-true))
+  (assert-equal? #f (or #f #f #f))
+)
 
 (run-all-tests)
