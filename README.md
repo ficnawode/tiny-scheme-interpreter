@@ -35,13 +35,13 @@ make test
 - integers
 - closures
 - strings 
-- booleans (for now `()` is `#f`, meaning nil/false, any non-nil value is true, explicitly: `#f`)
+- booleans `#t`, `#f` (`#f` is the only false value, `nil`/`'()` is not)
 - `display` and `newline`
 - tail calls (proper TCO - function call in tail position reuses the current function’s stack frame instead of creating a new one, preventing stack growth, meaning we can turn recursion into iteration)
 - garbage collection (for now a simple mark and sweep gc)
 
 ### Special forms
-- `quote` (`'`), `quasiquote` (`\```), `unquote` (`,`), `unquote-splicing` (`,@`)
+- `quote` (`'`), `quasiquote` (`` ` ``), `unquote` (`,`), `unquote-splicing` (`,@`)
 - `if`
 - `define`
 - `lambda`
