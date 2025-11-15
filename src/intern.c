@@ -48,6 +48,7 @@ void intern_init(void)
     intern("unquote-splicing");
 
     intern("#t");
+    intern("#f");
 
     PrimTable prim_table = get_prims();
     for (size_t i = 0; i < prim_table.count; i++) {

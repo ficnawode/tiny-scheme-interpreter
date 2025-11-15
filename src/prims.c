@@ -127,7 +127,7 @@ Value* prim_eq(Value* args)
     if (a->type != VALUE_INT || b->type != VALUE_INT) {
         return NIL;
     }
-    return (a->u.integer == b->u.integer) ? intern("#t") : NIL;
+    return (a->u.integer == b->u.integer) ? intern("#t") : intern("#f");
 }
 Value* prim_lt(Value* args)
 {
@@ -139,7 +139,7 @@ Value* prim_lt(Value* args)
     if (a->type != VALUE_INT || b->type != VALUE_INT) {
         return NIL;
     }
-    return (a->u.integer < b->u.integer) ? intern("#t") : NIL;
+    return (a->u.integer < b->u.integer) ? intern("#t") : intern("#f");
 }
 
 Value* prim_gt(Value* args)
@@ -152,7 +152,7 @@ Value* prim_gt(Value* args)
     if (a->type != VALUE_INT || b->type != VALUE_INT) {
         return NIL;
     }
-    return (a->u.integer > b->u.integer) ? intern("#t") : NIL;
+    return (a->u.integer > b->u.integer) ? intern("#t") : intern("#f");
 }
 
 Value* prim_number_p(Value* args)
@@ -161,7 +161,7 @@ Value* prim_number_p(Value* args)
         return NIL;
     }
     Value* a = CAR(args);
-    return (a->type == VALUE_INT) ? intern("#t") : NIL;
+    return (a->type == VALUE_INT) ? intern("#t") : intern("#f");
 }
 
 Value* prim_cons(Value* args)
@@ -204,7 +204,7 @@ Value* prim_list_p(Value* args)
         }
 
         if (p->type != VALUE_PAIR) {
-            return NIL;
+            return intern("#f");
         }
 
         p = CDR(p);
@@ -218,7 +218,7 @@ Value* prim_eq_p(Value* args)
     }
     Value* a = CAR(args);
     Value* b = CADR(args);
-    return (a == b) ? intern("#t") : NIL;
+    return (a == b) ? intern("#t") : intern("#f");
 }
 
 Value* prim_atom_p(Value* args)
@@ -227,7 +227,7 @@ Value* prim_atom_p(Value* args)
         return NIL;
     }
     Value* a = CAR(args);
-    return (a == NIL || a->type != VALUE_PAIR) ? intern("#t") : NIL;
+    return (a == NIL || a->type != VALUE_PAIR) ? intern("#t") : intern("#f");
 }
 
 Value* prim_string_p(Value* args)
@@ -235,7 +235,7 @@ Value* prim_string_p(Value* args)
     if (!expect_n_args(args, 1, "string?")) {
         return NIL;
     }
-    return (CAR(args)->type == VALUE_STRING) ? intern("#t") : NIL;
+    return (CAR(args)->type == VALUE_STRING) ? intern("#t") : intern("#f");
 }
 
 Value* prim_string_length(Value* args)
@@ -317,7 +317,7 @@ Value* prim_null_p(Value* args)
         return NIL;
     }
     Value* a = CAR(args);
-    return (a == NIL) ? intern("#t") : NIL;
+    return (a == NIL) ? intern("#t") : intern("#f");
 }
 
 PrimTable get_prims(void)

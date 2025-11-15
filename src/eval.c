@@ -670,6 +670,8 @@ Value* make_global_env()
     }
     Value* true_sym = intern("#t");
     env_add_binding(env, true_sym, true_sym);
+    Value* false_sym = intern("#f");
+    env_add_binding(env, false_sym, false_sym);
     GC_POP();
     return env;
 }
