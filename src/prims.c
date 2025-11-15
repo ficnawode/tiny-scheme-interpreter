@@ -320,6 +320,21 @@ Value* prim_null_p(Value* args)
     return (a == NIL) ? intern("#t") : intern("#f");
 }
 
+Value* prim_error(Value* args)
+{
+    if (args == NIL) {
+        fprintf(stderr, "Error: no message\n");
+    } else {
+        for (Value* p = args; p != NIL; p = CDR(p)) {
+            value_print(CAR(p));
+            fprintf(stderr, " ");
+        }
+        fprintf(stderr, "\n");
+    }
+    exit(1);
+    return NIL;
+}
+
 PrimTable get_prims(void)
 {
     static PrimDef prims[] = {
@@ -348,7 +363,8 @@ PrimTable get_prims(void)
         { "gensym", prim_gensym },
 
         { "display", prim_display },
-        { "newline", prim_newline }
+        { "newline", prim_newline },
+        { "error", prim_error }
     };
     size_t prims_len = sizeof(prims) / sizeof(prims[0]);
     return (PrimTable) { .prims = prims, .count = prims_len };

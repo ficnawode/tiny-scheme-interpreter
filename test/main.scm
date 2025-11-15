@@ -142,15 +142,27 @@
   (assert (eq? (car (reverse '(a b))) 'b)))
 
 
-(declare-test stdlib-cond-and-or
+(declare-test stdlib-cond
   (assert-equal? 'greater (cond ((> 3 2) 'greater)
-                            ((< 3 2) 'less)))
+                                ((< 3 2) 'less)))
   (assert-equal? 'equal (cond ((> 3 4) 'greater)
-                          ((= 3 3) 'equal)))
+                              ((= 3 3) 'equal)))
   (assert-equal? 'else-clause (cond ((< 1 0) 1)
-                                ((< 2 1) 2)
-                                (else 'else-clause)))
-  )
+                                    ((< 2 1) 2)
+                                    (else 'else-clause)))
+  (assert-equal? #f (cond))
+  (assert-equal? 42 (cond (42)))
+  (assert-equal? #f (cond (#f)))
+  (assert-equal? 'b (cond ((assoc 'y '((x a) (y b))) => cadr) (else #f)))
+  (assert-equal? #f (cond ((assoc 'z '((x a) (y b))) => cadr)(else #f)))
+
+  ; If I implement assert-error:
+  ; (cond (else) )
+  ; (cond (else 1) (2))
+  ; (cond (test =>))
+  ; (cond (test => proc extra))
+  ; (cond 'not-a-list)
+)
 
 (declare-test stdlib-boolean-ops
   (assert (not #f))

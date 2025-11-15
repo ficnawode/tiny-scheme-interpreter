@@ -2,6 +2,13 @@
     (car (cdr pair))
   )
 
+(define (caar pair) 
+    (car (car pair))
+  )
+(define (cddr pair) 
+    (cdr (cdr pair))
+  )
+
 (define (append a b)
   (if (null? a) b
       (cons (car a) (append (cdr a) b))))
@@ -40,14 +47,37 @@
 
 (define-macro (cond . clauses)
   (if (null? clauses)
-      (#f)
-      (let ((cl (car clauses)))
-        (if (eq? (car cl) 'else)
-            `(begin ,@(cdr cl))
-            `(if ,(car cl)
-                 (begin ,@(cdr cl))
-                 (cond ,@(cdr clauses)))))))
-
+      #f  ; Unspecified in R7RS
+      (let ((clause (car clauses))
+            (rest-clauses (cdr clauses)))
+        (if (not (list? clause))
+            (error "cond: invalid clause syntax")
+            (let ((test (car clause))
+                  (clause-rest (cdr clause)))
+              (if (eq? test 'else)
+                  (if (not (null? rest-clauses))
+                      (error "cond: else must be the last clause")
+                      (if (null? clause-rest)
+                          (error "cond: else clause requires expressions")
+                          `(begin ,@clause-rest)))
+                  (if (null? clause-rest)
+                      `(or ,test (cond ,@rest-clauses))
+                      (if (eq? (car clause-rest) '=>)
+                          (if (null? (cdr clause-rest))
+                              (error "cond: => requires a procedure")
+                              (if (not (null? (cddr clause-rest)))
+                                  (error "cond: too many expressions after =>")
+                                  `(let ((tmp ,test))
+                                     (if tmp
+                                         (,(cadr clause-rest) tmp)
+                                         (cond ,@rest-clauses)))))
+                          `(if ,test
+                               (begin ,@clause-rest)
+                               (cond ,@rest-clauses))))))))))
+(define (assoc key alist)
+  (cond ((null? alist) #f)
+  ((eq? key (caar alist)) (car alist))
+  (else (assoc key (cdr alist)))))
 
 (define (reverse lst)
   (letrec ((reverse-iter
