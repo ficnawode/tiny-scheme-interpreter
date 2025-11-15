@@ -155,6 +155,15 @@ Value* prim_gt(Value* args)
     return (a->u.integer > b->u.integer) ? intern("#t") : NIL;
 }
 
+Value* prim_number_p(Value* args)
+{
+    if (!expect_n_args(args, 1, "number?")) {
+        return NIL;
+    }
+    Value* a = CAR(args);
+    return (a->type == VALUE_INT) ? intern("#t") : NIL;
+}
+
 Value* prim_cons(Value* args)
 {
     if (!expect_n_args(args, 2, "cons")) {
@@ -179,6 +188,27 @@ Value* prim_cdr(Value* args)
         return NIL;
     }
     return CDR(CAR(args));
+}
+
+Value* prim_list_p(Value* args)
+{
+    if (!expect_n_args(args, 1, "list?")) {
+        return NIL;
+    }
+
+    Value* p = CAR(args);
+
+    for (;;) {
+        if (p == NIL) {
+            return intern("#t");
+        }
+
+        if (p->type != VALUE_PAIR) {
+            return NIL;
+        }
+
+        p = CDR(p);
+    }
 }
 
 Value* prim_eq_p(Value* args)
@@ -300,10 +330,12 @@ PrimTable get_prims(void)
         { "=", prim_eq },
         { ">", prim_gt },
         { "<", prim_lt },
+        { "number?", prim_number_p },
 
         { "cons", prim_cons },
         { "car", prim_car },
         { "cdr", prim_cdr },
+        { "list?", prim_list_p },
 
         { "eq?", prim_eq_p },
         { "atom?", prim_atom_p },

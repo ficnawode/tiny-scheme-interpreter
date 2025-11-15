@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct GCObject {
     struct GCObject* next;
@@ -103,6 +104,11 @@ static void mark(Value* v)
         mark(v->u.closure.body);
         mark(v->u.closure.env);
         break;
+    case VALUE_MACRO:
+        mark(v->u.macro.params);
+        mark(v->u.macro.body);
+        mark(v->u.macro.env);
+        break;
     default:
         break;
     }
@@ -124,6 +130,7 @@ static void free_value_internals(Value* v)
 static void free_gc_object(GCObject* o)
 {
     free_value_internals(&o->value);
+    memset(o, 0xDD, sizeof(GCObject));
     free(o);
 }
 

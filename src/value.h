@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 
 typedef enum {
     VALUE_NIL,
@@ -55,6 +56,6 @@ Value* value_prim_create(const char* name, PrimFn f);
 Value* value_closure_create(Value* params, Value* body, Value* env);
 Value* value_macro_create(Value* params, Value* body, Value* env);
 
-int value_is_true(Value* v);
+bool value_is_true(Value* v);
 
 void value_print(Value* v);

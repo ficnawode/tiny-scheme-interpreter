@@ -14,6 +14,9 @@ OBJECTS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SOURCES))
 
 all: $(EXECUTABLE)
 
+test: $(EXECUTABLE) ${test}
+	${EXECUTABLE} test/main.scm 
+
 $(EXECUTABLE): $(OBJECTS)
 	@mkdir -p $(@D)
 	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)

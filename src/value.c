@@ -89,9 +89,9 @@ void print_list(Value* v)
     printf(")");
 }
 
-int value_is_true(Value* v)
+bool value_is_true(Value* v)
 {
-    return !(v == NIL);
+    return v != NIL;
 }
 
 void value_print(Value* v)

@@ -2,48 +2,96 @@
     (car (cdr pair))
   )
 
-(define (map f xs)
-  (if (null? xs)
-      '()
-      (cons (f (car xs)) (map f (cdr xs)))
-      )
-  )
+(define (append a b)
+  (if (null? a) b
+      (cons (car a) (append (cdr a) b))))
+
+(define map
+  (lambda (f lst)
+    (if (null? lst)
+        '()
+        (cons (f (car lst))
+              (map f (cdr lst))))))
+
+(define (list . xs) xs)
+
 
 (define-macro (let bindings . body)
-  `((lambda ,(map car bindings) ,@body) ,@(map cadr bindings))
-  )
+  `((lambda ,(map (lambda (b) (car b)) bindings)
+      ,@body)
+    ,@(map (lambda (b) (car (cdr b))) bindings)))
+
+
+(define-macro (let* bindings . body)
+  (if (null? bindings)
+      `(let () ,@body)
+      `(let (,(car bindings))
+         (let* ,(cdr bindings) ,@body))))
+
+
+(define undefined 'undefined)
 
 (define-macro (letrec bindings . body)
-  (let ((vars (map car bindings))
-        (vals (map cadr bindings)))
+  (let ((vars (map car bindings)))
+    `(let ,(map (lambda (v) (list v undefined)) vars)
+       ,@(map (lambda (b) `(set! ,(car b) ,(cadr b))) bindings)
+       ,@body)))
 
-    ; some serious hackery here: a lambda takes itself as a parameter
-    (let ((make-setters-inner
-            (lambda (self vs ls)
-              (if (null? vs)
-                  '()
-                  (cons `(set! ,(car vs) ,(car ls))
-                        (self self (cdr vs) (cdr ls)))))))
-
-      `(let ,(map (lambda (v) `(,v '())) vars)
-         ,@(make-setters-inner make-setters-inner vars vals)
-         ,@body))))
 
 (define-macro (cond . clauses)
-  (letrec
-      ((expand-clauses (lambda (cls)
-         (if (null? cls)
-             '()
-             (let ((first-clause (car cls))
-                   (rest-clauses (cdr cls)))
-               (let ((test (car first-clause)))
-                 (if (eq? test 'else)
-                     `(begin ,@(cdr first-clause))
-                     `(if ,test
-                          (begin ,@(cdr first-clause))
-                          ,(expand-clauses rest-clauses)))))))))
-    (expand-clauses clauses)))
+  (if (null? clauses)
+      '()
+      (let ((cl (car clauses)))
+        (if (eq? (car cl) 'else)
+            `(begin ,@(cdr cl))
+            `(if ,(car cl)
+                 (begin ,@(cdr cl))
+                 (cond ,@(cdr clauses)))))))
+
+
+(define (reverse lst)
+  (letrec ((reverse-iter
+            (lambda (original reversed-so-far)
+              (if (null? original)
+                  reversed-so-far
+                  (reverse-iter (cdr original) (cons (car original) reversed-so-far))))))
+    (reverse-iter lst '())))
+
+(define (equal? a b)
+  (cond
+    ((and (number? a) (number? b))
+     (= a b))
+
+    ((and (atom? a) (atom? b))
+     (eq? a b))
+
+    ((and (not (atom? a)) (not (atom? b)))
+     (and (equal? (car a) (car b))
+          (equal? (cdr a) (cdr b))))
+
+    (else '())))
+
 
 
 (define-macro (not expr)
   `(if ,expr '() #t))
+
+(define-macro (and . clauses)
+  (if (null? clauses)
+      '#t
+      (if (null? (cdr clauses))
+          (car clauses)
+          `(if ,(car clauses)
+               (and ,@(cdr clauses))
+               '()))))
+
+
+(define-macro (or . clauses)
+  (if (null? clauses)
+      ''() 
+      (if (null? (cdr clauses))
+          (car clauses) 
+          `(let* ((result ,(car clauses)))
+             (if result
+                 result 
+                 (or ,@(cdr clauses))))))) 

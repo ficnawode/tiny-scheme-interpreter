@@ -32,24 +32,40 @@ void parser_cleanup(Parser* ctx)
 
 static Value* parse_list_dotted_tail(Parser* p, Value* head, Value* tail)
 {
+    GC_PUSH(head);
+    GC_PUSH(tail);
+
     if (head == NIL) {
         fprintf(stderr, "Syntax error: dot operator in invalid context\n");
+        GC_POP();
+        GC_POP();
         return NULL;
     }
     parser_advance(p);
 
     Value* cdr_val = parse_expr(p);
+    GC_PUSH(cdr_val);
     if (!cdr_val) {
+        GC_POP();
+        GC_POP();
+        GC_POP();
         return NULL;
     }
 
     if (p->current.type != TOK_RPAREN) {
         fprintf(stderr, "Syntax error: expected ')' after dotted pair\n");
+        GC_POP();
+        GC_POP();
+        GC_POP();
         return NULL;
     }
 
     parser_advance(p);
     CDR(tail) = cdr_val;
+
+    GC_POP();
+    GC_POP();
+    GC_POP();
     return head;
 }
 

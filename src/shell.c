@@ -1,5 +1,6 @@
 #include "shell.h"
 #include "eval.h"
+#include "gc.h"
 #include "parser.h"
 
 #include <stdio.h>
@@ -25,6 +26,7 @@ int repl(Value* env)
         }
 
         Value* expr = parse_from_string(line);
+
         free(line);
 
         if (!expr) {
@@ -32,7 +34,9 @@ int repl(Value* env)
             continue;
         }
 
+        GC_PUSH(expr);
         Value* res = eval(expr, env);
+        GC_POP();
         value_print(res);
         printf("\n");
     }
