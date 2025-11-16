@@ -30,43 +30,72 @@ void parser_cleanup(Parser* ctx)
     free(ctx);
 }
 
-static Value* parse_list_dotted_tail(Parser* p, Value* head, Value* tail)
+static Value* read_list_items(Parser* p, Value** out_rev)
 {
-    GC_PUSH(head);
-    GC_PUSH(tail);
+    Value* rev = NIL;
+    GC_PUSH(rev);
 
-    if (head == NIL) {
-        fprintf(stderr, "Syntax error: dot operator in invalid context\n");
+    while (p->current.type != TOK_RPAREN && p->current.type != TOK_DOT) {
+
+        Value* expr = parse_expr(p);
+        if (!expr) {
+            fprintf(stderr, "Syntax error: expr is null \n");
+            GC_POP();
+            return NULL;
+        }
+
+        GC_PUSH(expr);
+        rev = CONS(expr, rev);
         GC_POP();
-        GC_POP();
-        return NULL;
+
+        if (p->current.type == TOK_EOF) {
+            fprintf(stderr, "Syntax error: missing ')'\n");
+            GC_POP();
+            return NULL;
+        }
     }
+
+    *out_rev = rev;
+    GC_POP();
+    return rev;
+}
+
+static Value* finish_proper_list(Value* rev, Parser* p)
+{
+    parser_advance(p);
+    return list_reverse(rev);
+}
+
+static Value* finish_dotted_list(Value* rev, Parser* p)
+{
     parser_advance(p);
 
-    Value* cdr_val = parse_expr(p);
-    GC_PUSH(cdr_val);
-    if (!cdr_val) {
-        GC_POP();
-        GC_POP();
-        GC_POP();
+    if (rev == NIL) {
+        fprintf(stderr, "Syntax error: dot in invalid context\n");
+        return NULL;
+    }
+
+    Value* tail = parse_expr(p);
+    if (!tail) {
         return NULL;
     }
 
     if (p->current.type != TOK_RPAREN) {
         fprintf(stderr, "Syntax error: expected ')' after dotted pair\n");
-        GC_POP();
-        GC_POP();
-        GC_POP();
         return NULL;
     }
-
     parser_advance(p);
-    CDR(tail) = cdr_val;
+
+    Value* result = list_reverse(rev);
+    GC_PUSH(result);
+
+    Value* last = result;
+    while (CDR(last) != NIL)
+        last = CDR(last);
+    CDR(last) = tail;
 
     GC_POP();
-    GC_POP();
-    GC_POP();
-    return head;
+    return result;
 }
 
 static Value* parse_list(Parser* p)
@@ -76,53 +105,16 @@ static Value* parse_list(Parser* p)
         return NIL;
     }
 
-    Value* head = NIL;
-    Value* tail = NIL;
-
-    GC_PUSH(head);
-    GC_PUSH(tail);
-
-    for (;;) {
-        if (p->current.type == TOK_RPAREN) {
-            parser_advance(p);
-            GC_POP();
-            GC_POP();
-            return head;
-        }
-
-        if (p->current.type == TOK_DOT) {
-            head = parse_list_dotted_tail(p, head, tail);
-            GC_POP();
-            GC_POP();
-            return head;
-        }
-
-        Value* expr = parse_expr(p);
-        if (!expr) {
-            GC_POP();
-            GC_POP();
-            return NULL;
-        }
-
-        GC_PUSH(expr);
-        Value* node = CONS(expr, NIL);
-        GC_POP();
-
-        if (head == NIL) {
-            head = node;
-            tail = node;
-        } else {
-            CDR(tail) = node;
-            tail = node;
-        }
-
-        if (p->current.type == TOK_EOF) {
-            fprintf(stderr, "Syntax error: missing ')'\n");
-            GC_POP();
-            GC_POP();
-            return NULL;
-        }
+    Value* rev = NIL;
+    if (!read_list_items(p, &rev)) {
+        return NULL;
     }
+
+    if (p->current.type == TOK_RPAREN) {
+        return finish_proper_list(rev, p);
+    }
+
+    return finish_dotted_list(rev, p);
 }
 
 static Value* wrap_with_symbol(const char* sym_name, Parser* p)

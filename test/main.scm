@@ -45,6 +45,29 @@
   (assert (not (eq? #f '())))
   )
 
+(declare-test primitives-list-operations
+   (assert-eq? 'a (car (cons 'a 'b)))
+   (assert-eq? 'b (cdr (cons 'a 'b)))
+   (assert-eq? 'b (car (cdr '(a b c))))
+
+   ; (assert-eq 3 (length '(a b c)))
+   (assert-eq 0 (length '()))
+   (assert-eq 1 (length '(1)))
+   (assert-eq 4 (length '(1 "two" (3 4) #t))) 
+
+   (assert-equal? '(1 2 3 4) (append '(1 2) '(3 4)))
+   (assert-equal? '(a b c d e) (append '(a) '(b c) '(d e)))
+   (assert-equal? '(1 2) (append '() '(1 2))) 
+   (assert-equal? '(1 2) (append '(1 2) '())) 
+   (assert-equal? '() (append '() '()))
+   (assert-equal? '() (append)) 
+
+   (assert-equal? '(1 2 3 . 4) (append '(1 2) '(3 . 4)))
+   (assert-equal? '(1 2 . 3) (append '(1 2) 3))
+
+   (define single-arg-list '(a b c))
+   (assert (equal? single-arg-list (append single-arg-list)))
+   )
 
 (declare-test scope-lexical-closures
   (define (make-adder num-to-add)

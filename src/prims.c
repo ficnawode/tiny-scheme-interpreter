@@ -1,5 +1,6 @@
 #include "prims.h"
 #include "eval.h"
+#include "gc.h"
 #include "intern.h"
 #include "pair.h"
 #include "util.h"
@@ -9,16 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-static int list_length(Value* args)
-{
-    int n = 0;
-    while (args != NIL && args->type == VALUE_PAIR) {
-        n++;
-        args = CDR(args);
-    }
-    return n;
-}
 
 static bool expect_type(ValueType type, Value* v, const char* name)
 {
