@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+static Value* eval_tco_loop(Value* expr, Value* env);
 static Value* expand_quasiquote(Value* expr, Value* env);
 
 typedef struct {
@@ -72,7 +73,7 @@ static Value* eval_args(Value* list, Value* env)
     GC_PUSH(reversed_args);
 
     for (Value* p = list; p != NIL; p = CDR(p)) {
-        Value* evaluated_arg = eval(CAR(p), env);
+        Value* evaluated_arg = eval_tco_loop(CAR(p), env);
         GC_PUSH(evaluated_arg);
         reversed_args = CONS(evaluated_arg, reversed_args);
         GC_POP();
@@ -360,11 +361,9 @@ static EvalResult apply_proc(Value* proc, Value* args)
     case VALUE_CLOSURE:
         return apply_closure(proc, args);
     case VALUE_MACRO:
-        Value* err1 = runtime_error("macro object reached apply phase.");
-        return result_value(err1);
+        return result_value(runtime_error("macro object reached apply phase."));
     default:
-        Value* err2 = runtime_error("attempt to call non-function");
-        return result_value(err2);
+        return result_value(runtime_error("attempt to call non-function"));
     }
 }
 
@@ -380,11 +379,11 @@ static EvalResult eval_pair(Value* expr, Value* env)
     GC_PUSH(proc);
     Value* args = eval_args(CDR(expr), env);
     GC_PUSH(args);
-    call_stack_push(expr);
+
+    call_stack_push(op);
 
     EvalResult r = apply_proc(proc, args);
 
-    call_stack_pop();
     GC_POP();
     GC_POP();
     return r;
@@ -506,7 +505,6 @@ static Value* expand_quasiquote(Value* expr, Value* env)
             return eval(CADR(expr), env);
         }
         if (value_is_symbol_name(CAR(expr), "unquote-splicing")) {
-
             return runtime_error("unquote-splicing not valid at top level");
         }
     }
@@ -526,15 +524,14 @@ static EvalResult eval_dispatch(Value* expr, Value* env)
     case VALUE_PRIMITIVE:
     case VALUE_CLOSURE:
     case VALUE_STRING:
+    case VALUE_ERROR:
         return result_value(expr);
     case VALUE_SYMBOL:
-        Value* v = eval_symbol(expr, env);
-        return result_value(v);
+        return result_value(eval_symbol(expr, env));
     case VALUE_PAIR:
         return eval_pair(expr, env);
     default:
-        Value* err = runtime_error("eval - unknown expression type");
-        return result_value(err);
+        return result_value(runtime_error("eval - unknown expression type"));
     }
 }
 
@@ -554,7 +551,7 @@ static Value* expand_macro_call(Value* macro, Value* full_expr)
     GC_PUSH(result);
 
     for (Value* p = macro_body; p != NIL; p = CDR(p)) {
-        result = eval(CAR(p), expansion_env);
+        result = eval_tco_loop(CAR(p), expansion_env);
     }
 
     GC_POP();
@@ -599,7 +596,7 @@ Value* expand_macro(Value* expr, Value* env)
     return runtime_error("Macro expansion limit (n=%d) exceeded, check for infinite recursion in macro", MAX_MACRO_RECURSION_DEPTH);
 }
 
-Value* eval(Value* expr, Value* env)
+static Value* eval_tco_loop(Value* expr, Value* env)
 {
     GC_PUSH(expr);
     GC_PUSH(env);
@@ -615,6 +612,19 @@ Value* eval(Value* expr, Value* env)
         expr = r.tc.expr;
         env = r.tc.env;
     }
+}
+
+Value* eval(Value* expr, Value* env)
+{
+    int initial_stack_depth = call_stack_length();
+
+    Value* result = eval_tco_loop(expr, env);
+
+    while (call_stack_length() > initial_stack_depth) {
+        call_stack_pop();
+    }
+
+    return result;
 }
 
 Value* eval_file(const char* filename, Value* env)

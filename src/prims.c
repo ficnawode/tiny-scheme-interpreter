@@ -101,7 +101,6 @@ Value* prim_div(Value* args)
             return NIL;
         }
         if (a->u.integer == 0) {
-            fprintf(stderr, "/: division by zero\n");
             return runtime_error("division by zero");
         }
         result /= a->u.integer;

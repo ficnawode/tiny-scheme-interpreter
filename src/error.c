@@ -63,7 +63,29 @@ void call_stack_push(Value* expr)
 
 void call_stack_pop(void)
 {
-    call_stack = CDR(call_stack);
+    if (call_stack != NIL) {
+        call_stack = CDR(call_stack);
+    }
+}
+
+static Value* copy_list(Value* list)
+{
+    if (list == NIL) {
+        return NIL;
+    }
+    GC_PUSH(list);
+    Value* new_head = CONS(CAR(list), NIL);
+    GC_PUSH(new_head);
+    Value* new_tail = new_head;
+
+    for (Value* p = CDR(list); p != NIL; p = CDR(p)) {
+        Value* new_node = CONS(CAR(p), NIL);
+        CDR(new_tail) = new_node;
+        new_tail = new_node;
+    }
+    GC_POP();
+    GC_POP();
+    return new_head;
 }
 
 Value* runtime_error(const char* fmt, ...)
@@ -87,7 +109,7 @@ Value* runtime_error(const char* fmt, ...)
     va_end(args2);
 
     Value* err = value_error_create(message_buffer);
-    err->u.error.call_stack = call_stack;
+    err->u.error.call_stack = copy_list(call_stack);
 
     free(message_buffer);
 
@@ -96,14 +118,24 @@ Value* runtime_error(const char* fmt, ...)
 
 void print_runtime_error(Value* err)
 {
-    fprintf(stderr, "Runtime Error: %s\n", err->u.error.message);
+    printf("Runtime Error: %s\n", err->u.error.message);
     if (err->u.error.call_stack != NIL) {
         fprintf(stderr, "Stack trace:\n");
         Value* trace = err->u.error.call_stack;
         for (; trace != NIL; trace = CDR(trace)) {
-            fprintf(stderr, "  ");
+            printf("  ");
             value_print(CAR(trace));
-            fprintf(stderr, "\n");
+            printf("\n");
         }
     }
+}
+
+void call_stack_clear(void)
+{
+    call_stack = NIL;
+}
+
+int call_stack_length(void)
+{
+    return list_length(call_stack);
 }

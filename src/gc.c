@@ -123,6 +123,9 @@ static void free_value_internals(Value* v)
     case VALUE_STRING:
         free(v->u.string);
         return;
+    case VALUE_ERROR:
+        free(v->u.error.message);
+        return;
     default:
     }
 }
