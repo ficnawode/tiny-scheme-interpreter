@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static Value* eval_tco_loop(Value* expr, Value* env);
 static Value* expand_quasiquote(Value* expr, Value* env);
 
 typedef struct {
@@ -36,18 +35,13 @@ typedef struct {
 
 static inline EvalResult result_value(Value* value)
 {
-    EvalResult r;
-    r.kind = RES_VALUE;
-    r.v.value = value;
+    EvalResult r = { .kind = RES_VALUE, .v.value = value };
     return r;
 }
 
 static inline EvalResult result_tail(Value* expr, Value* env)
 {
-    EvalResult r;
-    r.kind = RES_TAILCALL;
-    r.tc.expr = expr;
-    r.tc.env = env;
+    EvalResult r = { .kind = RES_TAILCALL, .tc.expr = expr, .tc.env = env };
     return r;
 }
 
@@ -73,7 +67,7 @@ static Value* eval_args(Value* list, Value* env)
     GC_PUSH(reversed_args);
 
     for (Value* p = list; p != NIL; p = CDR(p)) {
-        Value* evaluated_arg = eval_tco_loop(CAR(p), env);
+        Value* evaluated_arg = eval(CAR(p), env);
         GC_PUSH(evaluated_arg);
         reversed_args = CONS(evaluated_arg, reversed_args);
         GC_POP();
@@ -125,8 +119,7 @@ static EvalResult handle_define(Value* expr, Value* env)
         Value* body = value_expr;
         val_to_eval = value_closure_create(params, body, env);
     } else {
-        Value* err = runtime_error("Invalid define syntax");
-        return result_value(err);
+        return result_value(runtime_error("Invalid define syntax"));
     }
 
     GC_PUSH(val_to_eval);
@@ -152,14 +145,12 @@ static EvalResult handle_load_file(Value* expr, Value* env)
 {
     Value* filename_expr = CADR(expr);
     if (!filename_expr || filename_expr == NIL) {
-        Value* err = runtime_error("\"load\" expected a filename");
-        return result_value(err);
+        return result_value(runtime_error("\"load\" expected a filename"));
     }
 
     Value* filename_val = eval(filename_expr, env);
     if (filename_val->type != VALUE_STRING) {
-        Value* err = runtime_error("\"load\" argument must be a string");
-        return result_value(err);
+        return result_value(runtime_error("\"load\" argument must be a string"));
     }
 
     Value* result = eval_file(filename_val->u.string, env);
@@ -210,15 +201,13 @@ static Value* find_binding(Value* env, const char* symbol)
 static EvalResult handle_set_bang(Value* expr, Value* env)
 {
     if (list_length(CDR(expr)) != 2) {
-        Value* err = runtime_error("bad set! syntax. Expected (set! <symbol> <value>)");
-        return result_value(err);
+        return result_value(runtime_error("bad set! syntax. Expected (set! <symbol> <value>)"));
     }
 
     Value* target = CADR(expr);
 
     if (target->type != VALUE_SYMBOL) {
-        Value* err = runtime_error("first argument of set! must be a symbol, but got something else");
-        return result_value(err);
+        return result_value(runtime_error("first argument of set! must be a symbol, but got something else"));
     }
 
     Value* value_expr = CADDR(expr);
@@ -244,8 +233,7 @@ static EvalResult handle_apply(Value* expr, Value* env)
     Value* args_unevaluated = CDR(expr);
 
     if (list_length(args_unevaluated) < 2) {
-        Value* err = runtime_error("apply expects at least 2 arguments");
-        return result_value(err);
+        return result_value(runtime_error("apply expects at least 2 arguments"));
     }
 
     Value* apply_args_evaluated = eval_args(args_unevaluated, env);
@@ -269,8 +257,7 @@ static EvalResult handle_apply(Value* expr, Value* env)
     if (last_arg_list->type != VALUE_PAIR && last_arg_list != NIL) {
         GC_POP();
         GC_POP();
-        Value* err = runtime_error("last argument of apply must be a list");
-        return result_value(err);
+        return result_value(runtime_error("last argument of apply must be a list"));
     }
 
     if (final_arg_list == NIL) {
@@ -333,9 +320,7 @@ static Value* apply_primitive(Value* proc, Value* args)
 static EvalResult apply_closure(Value* proc, Value* args)
 {
     GC_PUSH(proc);
-    Value* closure_env = env_extend(proc->u.closure.env,
-        proc->u.closure.params,
-        args);
+    Value* closure_env = env_extend(proc->u.closure.env, proc->u.closure.params, args);
     GC_PUSH(closure_env);
 
     Value* body = proc->u.closure.body;
@@ -375,12 +360,18 @@ static EvalResult eval_pair(Value* expr, Value* env)
     }
 
     Value* op = CAR(expr);
-    Value* proc = eval(op, env);
+    Value* proc = NULL;
     GC_PUSH(proc);
-    Value* args = eval_args(CDR(expr), env);
-    GC_PUSH(args);
+    proc = eval(op, env);
 
-    call_stack_push(op);
+    if (proc->type == VALUE_ERROR) {
+        GC_POP();
+        return result_value(proc);
+    }
+
+    Value* args = NULL;
+    GC_PUSH(args);
+    args = eval_args(CDR(expr), env);
 
     EvalResult r = apply_proc(proc, args);
 
@@ -551,7 +542,7 @@ static Value* expand_macro_call(Value* macro, Value* full_expr)
     GC_PUSH(result);
 
     for (Value* p = macro_body; p != NIL; p = CDR(p)) {
-        result = eval_tco_loop(CAR(p), expansion_env);
+        result = eval(CAR(p), expansion_env);
     }
 
     GC_POP();
@@ -565,7 +556,7 @@ static Value* expand_macro_call(Value* macro, Value* full_expr)
 #define MAX_MACRO_RECURSION_DEPTH 100
 Value* expand_macro(Value* expr, Value* env)
 {
-    GC_PUSH(expr);
+    GC_PUSH(expr); /* root for current expr */
     for (int i = 0; i < MAX_MACRO_RECURSION_DEPTH; i++) {
         if (expr->type != VALUE_PAIR) {
             GC_POP();
@@ -590,41 +581,44 @@ Value* expand_macro(Value* expr, Value* env)
         expr = expand_macro_call(macro_obj, expr);
 
         GC_POP();
+        GC_POP();
+        GC_PUSH(expr);
     }
 
     GC_POP();
     return runtime_error("Macro expansion limit (n=%d) exceeded, check for infinite recursion in macro", MAX_MACRO_RECURSION_DEPTH);
 }
 
-static Value* eval_tco_loop(Value* expr, Value* env)
-{
-    GC_PUSH(expr);
-    GC_PUSH(env);
-    for (;;) {
-        expr = expand_macro(expr, env);
-
-        EvalResult r = eval_dispatch(expr, env);
-        if (r.kind == RES_VALUE) {
-            GC_POP();
-            GC_POP();
-            return r.v.value;
-        }
-        expr = r.tc.expr;
-        env = r.tc.env;
-    }
-}
-
 Value* eval(Value* expr, Value* env)
 {
     int initial_stack_depth = call_stack_length();
 
-    Value* result = eval_tco_loop(expr, env);
+    GC_PUSH(expr);
+    GC_PUSH(env);
 
-    while (call_stack_length() > initial_stack_depth) {
-        call_stack_pop();
+    for (;;) {
+        expr = expand_macro(expr, env);
+        if (expr && expr->type == VALUE_ERROR) {
+            GC_POP();
+            GC_POP();
+            return expr;
+        }
+
+        call_stack_push(expr);
+        EvalResult r = eval_dispatch(expr, env);
+
+        if (r.kind == RES_VALUE) {
+            while (call_stack_length() > initial_stack_depth) {
+                call_stack_pop();
+            }
+            GC_POP();
+            GC_POP();
+            return r.v.value;
+        }
+
+        expr = r.tc.expr;
+        env = r.tc.env;
     }
-
-    return result;
 }
 
 Value* eval_file(const char* filename, Value* env)

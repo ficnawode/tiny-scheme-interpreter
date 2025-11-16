@@ -139,3 +139,12 @@ int call_stack_length(void)
 {
     return list_length(call_stack);
 }
+
+Value* get_call_stack(void)
+{
+    return call_stack;
+}
+void set_call_stack(Value* cs)
+{
+    call_stack = cs;
+}

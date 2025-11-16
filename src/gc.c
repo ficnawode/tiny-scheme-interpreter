@@ -24,7 +24,9 @@ static inline GCObject* gc_object_of(Value* v)
 }
 
 static size_t total_allocated_bytes = 0;
-static size_t gc_threshold = 500 * 1024;
+
+#define GC_MIN_THRESHOLD 256 * 1024
+static size_t gc_threshold = GC_MIN_THRESHOLD;
 
 typedef struct RootNode {
     struct RootNode* next;
@@ -41,6 +43,7 @@ void gc_init(void)
 {
     root_stack_capacity = 128;
     root_stack = xmalloc(root_stack_capacity * sizeof(Value**));
+    root_stack_size = 0;
 }
 
 void gc_register_root(Value** addr)
@@ -62,7 +65,12 @@ void gc_push_root(Value** addr)
 
 void gc_pop_root(void)
 {
+    if (root_stack_size == 0) {
+        fprintf(stderr, "gc_pop_root(): underflow (popped more than pushed)\n");
+        exit(1);
+    }
     root_stack_size--;
+    root_stack[root_stack_size] = NULL;
 }
 
 Value* gc_alloc(ValueType type)
@@ -72,6 +80,8 @@ Value* gc_alloc(ValueType type)
     }
 
     GCObject* obj = xmalloc(sizeof(GCObject));
+
+    memset(&obj->value, 0, sizeof(Value));
 
     obj->marked = 0;
     obj->next = all_objects;
@@ -109,6 +119,8 @@ static void mark(Value* v)
         mark(v->u.macro.body);
         mark(v->u.macro.env);
         break;
+    case VALUE_ERROR:
+        mark(v->u.error.call_stack);
     default:
         break;
     }
@@ -165,6 +177,8 @@ void gc_collect(void)
         mark(*(root_stack[i]));
 
     sweep();
+
+    gc_threshold *= 2;
 }
 
 void gc_destroy(void)

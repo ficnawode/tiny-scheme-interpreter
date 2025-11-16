@@ -12,3 +12,5 @@ void call_stack_push(Value* val);
 void call_stack_pop(void);
 void call_stack_clear(void);
 int call_stack_length(void);
+Value* get_call_stack(void);
+void set_call_stack(Value* cs);

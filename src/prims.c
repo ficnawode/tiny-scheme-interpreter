@@ -12,31 +12,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-static bool expect_type(ValueType type, Value* v, const char* name)
-{
-    if (v->type != type) {
-        fprintf(stderr, "%s: expected type %d but got %d \n", name, type, v->type);
-        return false;
-    }
-    return true;
-}
-
-static bool expect_n_args(Value* args, int n_args_expected, const char* name)
-{
-    if (list_length(args) != n_args_expected) {
-        fprintf(stderr, "%s: expects %d arguments\n", name, n_args_expected);
-        return false;
-    }
-    return true;
-}
-
 Value* prim_plus(Value* args)
 {
     long sum = 0;
-    for (; args != NIL; args = CDR(args)) {
-        Value* a = CAR(args);
-        if (!expect_type(VALUE_INT, a, "+"))
-            return NIL;
+    for (Value* p = args; p != NIL; p = CDR(p)) {
+        Value* a = CAR(p);
+        if (a->type != VALUE_INT) {
+            return runtime_error("+: all arguments must be numbers");
+        }
         sum += a->u.integer;
     }
     return value_int_create(sum);
@@ -49,21 +32,21 @@ Value* prim_minus(Value* args)
     }
 
     Value* first = CAR(args);
-    if (!expect_type(VALUE_INT, first, "-")) {
-        return NIL;
+    if (first->type != VALUE_INT) {
+        return runtime_error("-: all arguments must be numbers");
     }
 
     long result = first->u.integer;
-    args = CDR(args);
+    Value* rest = CDR(args);
 
-    if (args == NIL) {
+    if (rest == NIL) {
         return value_int_create(-result);
     }
 
-    for (; args != NIL; args = CDR(args)) {
-        Value* a = CAR(args);
-        if (!expect_type(VALUE_INT, a, "-")) {
-            return NIL;
+    for (Value* p = rest; p != NIL; p = CDR(p)) {
+        Value* a = CAR(p);
+        if (a->type != VALUE_INT) {
+            return runtime_error("-: all arguments must be numbers");
         }
         result -= a->u.integer;
     }
@@ -73,10 +56,10 @@ Value* prim_minus(Value* args)
 Value* prim_mul(Value* args)
 {
     long prod = 1;
-    for (; args != NIL; args = CDR(args)) {
-        Value* a = CAR(args);
-        if (!expect_type(VALUE_INT, a, "*")) {
-            return NIL;
+    for (Value* p = args; p != NIL; p = CDR(p)) {
+        Value* a = CAR(p);
+        if (a->type != VALUE_INT) {
+            return runtime_error("*: all arguments must be numbers");
         }
         prod *= a->u.integer;
     }
@@ -85,20 +68,21 @@ Value* prim_mul(Value* args)
 
 Value* prim_div(Value* args)
 {
-    if (args == NIL || CDR(args) == NIL) {
-        fprintf(stderr, "/: expects at least 2 arguments\n");
-        return NIL;
+    int n_args = list_length(args);
+    if (n_args < 2) {
+        return runtime_error("/: expects at least 2 arguments");
     }
+
     Value* first = CAR(args);
-    if (!expect_type(VALUE_INT, first, "/")) {
-        return NIL;
+    if (first->type != VALUE_INT) {
+        return runtime_error("/: all arguments must be numbers");
     }
     long result = first->u.integer;
 
-    for (args = CDR(args); args != NIL; args = CDR(args)) {
-        Value* a = CAR(args);
-        if (!expect_type(VALUE_INT, a, "/")) {
-            return NIL;
+    for (Value* p = CDR(args); p != NIL; p = CDR(p)) {
+        Value* a = CAR(p);
+        if (a->type != VALUE_INT) {
+            return runtime_error("/: all arguments must be numbers");
         }
         if (a->u.integer == 0) {
             return runtime_error("division by zero");
@@ -110,102 +94,103 @@ Value* prim_div(Value* args)
 
 Value* prim_eq(Value* args)
 {
-    if (!expect_n_args(args, 2, "=")) {
-        return NIL;
+    if (list_length(args) != 2) {
+        return runtime_error("=: expects exactly 2 arguments");
     }
     Value* a = CAR(args);
     Value* b = CADR(args);
     if (a->type != VALUE_INT || b->type != VALUE_INT) {
-        return NIL;
+        return runtime_error("=: arguments must be numbers");
     }
     return (a->u.integer == b->u.integer) ? intern("#t") : intern("#f");
 }
+
 Value* prim_lt(Value* args)
 {
-    if (!expect_n_args(args, 2, "<")) {
-        return NIL;
+    if (list_length(args) != 2) {
+        return runtime_error("<: expects exactly 2 arguments");
     }
     Value* a = CAR(args);
     Value* b = CADR(args);
     if (a->type != VALUE_INT || b->type != VALUE_INT) {
-        return NIL;
+        return runtime_error("<: arguments must be numbers");
     }
     return (a->u.integer < b->u.integer) ? intern("#t") : intern("#f");
 }
 
 Value* prim_gt(Value* args)
 {
-    if (!expect_n_args(args, 2, ">")) {
-        return NIL;
+    if (list_length(args) != 2) {
+        return runtime_error(">: expects exactly 2 arguments");
     }
     Value* a = CAR(args);
     Value* b = CADR(args);
     if (a->type != VALUE_INT || b->type != VALUE_INT) {
-        return NIL;
+        return runtime_error(">: arguments must be numbers");
     }
     return (a->u.integer > b->u.integer) ? intern("#t") : intern("#f");
 }
 
 Value* prim_number_p(Value* args)
 {
-    if (!expect_n_args(args, 1, "number?")) {
-        return NIL;
+    if (list_length(args) != 1) {
+        return runtime_error("number?: expects exactly 1 argument");
     }
-    Value* a = CAR(args);
-    return (a->type == VALUE_INT) ? intern("#t") : intern("#f");
+    return (CAR(args)->type == VALUE_INT) ? intern("#t") : intern("#f");
 }
 
 Value* prim_cons(Value* args)
 {
-    if (!expect_n_args(args, 2, "cons")) {
-        return NIL;
+    if (list_length(args) != 2) {
+        return runtime_error("cons: expects exactly 2 arguments");
     }
     return value_cons_create(CAR(args), CADR(args));
 }
 
 Value* prim_car(Value* args)
 {
-    if (!expect_n_args(args, 1, "car")
-        || !expect_type(VALUE_PAIR, CAR(args), "car")) {
-        return NIL;
+    if (list_length(args) != 1) {
+        return runtime_error("car: expects exactly 1 argument");
     }
-    return CAR(CAR(args));
+    Value* pair = CAR(args);
+    if (pair->type != VALUE_PAIR) {
+        return runtime_error("car: argument must be a pair");
+    }
+    return CAR(pair);
 }
 
 Value* prim_cdr(Value* args)
 {
-    if (!expect_n_args(args, 1, "cdr")
-        || !expect_type(VALUE_PAIR, CAR(args), "cdr")) {
-        return NIL;
+    if (list_length(args) != 1) {
+        return runtime_error("cdr: expects exactly 1 argument");
     }
-    return CDR(CAR(args));
+    Value* pair = CAR(args);
+    if (pair->type != VALUE_PAIR) {
+        return runtime_error("cdr: argument must be a pair");
+    }
+    return CDR(pair);
 }
 
 Value* prim_list_p(Value* args)
 {
-    if (!expect_n_args(args, 1, "list?")) {
-        return NIL;
+    if (list_length(args) != 1) {
+        return runtime_error("list?: expects exactly 1 argument");
     }
 
     Value* p = CAR(args);
-
     for (;;) {
-        if (p == NIL) {
+        if (p == NIL)
             return intern("#t");
-        }
-
-        if (p->type != VALUE_PAIR) {
+        if (p->type != VALUE_PAIR)
             return intern("#f");
-        }
-
         p = CDR(p);
     }
 }
 
 Value* prim_eq_p(Value* args)
 {
-    if (!expect_n_args(args, 2, "eq?")) {
-        return NIL;
+    if (list_length(args) != 2) {
+        return runtime_error("eq?: expects exactly 2 arguments");
     }
     Value* a = CAR(args);
     Value* b = CADR(args);
@@ -214,8 +199,8 @@ Value* prim_eq_p(Value* args)
 
 Value* prim_atom_p(Value* args)
 {
-    if (!expect_n_args(args, 1, "atom?")) {
-        return NIL;
+    if (list_length(args) != 1) {
+        return runtime_error("atom?: expects exactly 1 argument");
     }
     Value* a = CAR(args);
     return (a == NIL || a->type != VALUE_PAIR) ? intern("#t") : intern("#f");
@@ -223,18 +208,20 @@ Value* prim_atom_p(Value* args)
 
 Value* prim_string_p(Value* args)
 {
-    if (!expect_n_args(args, 1, "string?")) {
-        return NIL;
+    if (list_length(args) != 1) {
+        return runtime_error("string?: expects exactly 1 argument");
     }
     return (CAR(args)->type == VALUE_STRING) ? intern("#t") : intern("#f");
 }
 
 Value* prim_string_length(Value* args)
 {
+    if (list_length(args) != 1) {
+        return runtime_error("string-length: expects exactly 1 argument");
+    }
     Value* str = CAR(args);
-    if (!expect_n_args(args, 1, "string-length")
-        || !expect_type(VALUE_STRING, str, "string-length")) {
-        return NIL;
+    if (str->type != VALUE_STRING) {
+        return runtime_error("string-length: argument must be a string");
     }
     return value_int_create(strlen(str->u.string));
 }
@@ -244,8 +231,8 @@ Value* prim_string_append(Value* args)
     size_t total_len = 0;
     for (Value* p = args; p != NIL; p = CDR(p)) {
         Value* str = CAR(p);
-        if (!expect_type(VALUE_STRING, str, "string-append")) {
-            return NIL;
+        if (str->type != VALUE_STRING) {
+            return runtime_error("string-append: all arguments must be strings");
         }
         total_len += strlen(str->u.string);
     }
@@ -269,21 +256,19 @@ Value* prim_gensym(Value* args)
     int n_args = list_length(args);
 
     if (n_args > 1) {
-        fprintf(stderr, "gensym: expects 0 or 1 arguments\n");
-        return NIL;
+        return runtime_error("gensym: expects 0 or 1 arguments");
     }
 
     if (n_args == 1) {
         Value* prefix_val = CAR(args);
-        if (!expect_type(VALUE_STRING, prefix_val, "gensym")) {
-            return NIL;
+        if (prefix_val->type != VALUE_STRING) {
+            return runtime_error("gensym: argument must be a string");
         }
         prefix = prefix_val->u.string;
     }
 
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "%s__%lu", prefix, gensym_counter++);
-
     return value_symbol_create(buffer);
 }
 
@@ -304,34 +289,30 @@ Value* prim_newline(Value* args)
 
 Value* prim_null_p(Value* args)
 {
-    if (!expect_n_args(args, 1, "null?")) {
-        return NIL;
+    if (list_length(args) != 1) {
+        return runtime_error("null?: expects exactly 1 argument");
     }
-    Value* a = CAR(args);
-    return (a == NIL) ? intern("#t") : intern("#f");
+    return (CAR(args) == NIL) ? intern("#t") : intern("#f");
 }
 
 Value* prim_error(Value* args)
 {
     if (args == NIL) {
-        return runtime_error("malformed user error - error procedure called with no arguments");
+        return runtime_error("error: procedure called with no arguments");
     }
-
     Value* msg = CAR(args);
     if (msg->type != VALUE_STRING) {
-        return runtime_error("malformed user error - first argument must be a string message");
+        return runtime_error("error: first argument must be a string message");
     }
-
     return runtime_error(msg->u.string);
 }
 
 Value* prim_error_object_p(Value* args)
 {
-    if (!expect_n_args(args, 1, "error?")) {
-        return NIL;
+    if (list_length(args) != 1) {
+        return runtime_error("error-object?: expects exactly 1 argument");
     }
-    Value* a = CAR(args);
-    return (a->type == VALUE_ERROR) ? intern("#t") : intern("#f");
+    return (CAR(args)->type == VALUE_ERROR) ? intern("#t") : intern("#f");
 }
 
 PrimTable get_prims(void)
@@ -345,22 +326,17 @@ PrimTable get_prims(void)
         { ">", prim_gt },
         { "<", prim_lt },
         { "number?", prim_number_p },
-
         { "cons", prim_cons },
         { "car", prim_car },
         { "cdr", prim_cdr },
         { "list?", prim_list_p },
-
         { "eq?", prim_eq_p },
         { "atom?", prim_atom_p },
         { "null?", prim_null_p },
-
         { "string?", prim_string_p },
         { "string-length", prim_string_length },
         { "string-append", prim_string_append },
-
         { "gensym", prim_gensym },
-
         { "display", prim_display },
         { "newline", prim_newline },
         { "error", prim_error },
