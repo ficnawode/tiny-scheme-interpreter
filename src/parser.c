@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "error.h"
 #include "gc.h"
 #include "intern.h"
 #include "pair.h"
@@ -8,17 +9,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PRINT_ERROR_HERE(p, fmt, ...)        \
+    do {                                     \
+        print_parser_error((p)->current.loc, \
+            (p)->lexer->buffer.data,         \
+            fmt, ##__VA_ARGS__);             \
+    } while (0)
+
 void parser_advance(Parser* ctx)
 {
     token_cleanup(&ctx->current);
     ctx->current = lexer_next(ctx->lexer);
 }
 
-Parser* parser_create(const char* source)
+Parser* parser_create(const char* source, const char* filename)
 {
     Parser* ctx = xmalloc(sizeof(Parser));
     memset(ctx, 0, sizeof(Parser));
-    ctx->lexer = lexer_create(source);
+    ctx->lexer = lexer_create(source, filename);
     parser_advance(ctx);
     return ctx;
 }
@@ -39,7 +47,7 @@ static Value* read_list_items(Parser* p, Value** out_rev)
 
         Value* expr = parse_expr(p);
         if (!expr) {
-            fprintf(stderr, "Syntax error: expr is null \n");
+            PRINT_ERROR_HERE(p, "encountered null expr while parsing list");
             GC_POP();
             return NULL;
         }
@@ -49,7 +57,7 @@ static Value* read_list_items(Parser* p, Value** out_rev)
         GC_POP();
 
         if (p->current.type == TOK_EOF) {
-            fprintf(stderr, "Syntax error: missing ')'\n");
+            PRINT_ERROR_HERE(p, "missing ')'");
             GC_POP();
             return NULL;
         }
@@ -71,17 +79,18 @@ static Value* finish_dotted_list(Value* rev, Parser* p)
     parser_advance(p);
 
     if (rev == NIL) {
-        fprintf(stderr, "Syntax error: dot in invalid context\n");
+        PRINT_ERROR_HERE(p, "dot in invalid context");
         return NULL;
     }
 
     Value* tail = parse_expr(p);
     if (!tail) {
+        PRINT_ERROR_HERE(p, "expecting an expression");
         return NULL;
     }
 
     if (p->current.type != TOK_RPAREN) {
-        fprintf(stderr, "Syntax error: expected ')' after dotted pair\n");
+        PRINT_ERROR_HERE(p, "expected ')' after dotted pair");
         return NULL;
     }
     parser_advance(p);
@@ -161,19 +170,22 @@ Value* parse_expr(Parser* p)
         parser_advance(p);
         return str;
     case TOK_RPAREN:
-        fprintf(stderr, "Unexpected ')'\n");
-        return NIL;
+        PRINT_ERROR_HERE(p, "Unexpected ')'");
+        return NULL;
     case TOK_EOF:
         return NULL;
+    case TOK_ERROR:
+        PRINT_ERROR_HERE(p, "Token Error: %s", p->current.lexeme);
+        return NULL;
     default:
-        fprintf(stderr, "Unknown token\n");
-        return NIL;
+        PRINT_ERROR_HERE(p, "Unknown token: %s", p->current.lexeme);
+        return NULL;
     }
 }
 
 Value* parse_from_string(const char* s)
 {
-    Parser* p = parser_create(s);
+    Parser* p = parser_create(s, "<repl>");
     Value* res = parse_expr(p);
     parser_cleanup(p);
     return res;

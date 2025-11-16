@@ -53,7 +53,6 @@ int repl(Value* env)
         free(line);
 
         if (!expr) {
-            printf("Syntax error\n");
             continue;
         }
 

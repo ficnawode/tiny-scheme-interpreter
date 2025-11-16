@@ -615,7 +615,7 @@ Value* eval_file(const char* filename, Value* env)
     if (!input) {
         return NULL;
     }
-    Parser* p = parser_create(input);
+    Parser* p = parser_create(input, filename);
     Value* last_result = NIL;
     GC_PUSH(last_result);
     for (;;) {
