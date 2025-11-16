@@ -38,6 +38,12 @@
 (define-macro (assert-equal? expr1 expr2)
   `(assert (equal? ,expr1 ,expr2)))
 
+(define-macro (assert-error? expr1 )
+  `(assert (error-object? ,expr1)))
+
+(define-macro (assert-no-error? expr1 )
+  `(assert (not (error-object? ,expr1))))
+
 (define (run-all-tests)
   (let ((tests (*test-manager* 'get-tests)))
     (display "====================") (newline)

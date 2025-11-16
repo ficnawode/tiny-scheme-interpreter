@@ -1,4 +1,5 @@
 #include "env.h"
+#include "error.h"
 #include "gc.h"
 #include "pair.h"
 
@@ -47,8 +48,7 @@ Value* env_extend(Value* env, Value* params, Value* args)
 
     while (params != NIL && params->type == VALUE_PAIR) {
         if (args == NIL) {
-            fprintf(stderr, "Error: not enough arguments provided\n");
-            break;
+            return runtime_error("Env extend - not enough arguments provided");
         }
         Value* binding = CONS(CAR(params), CAR(args));
         GC_PUSH(binding);

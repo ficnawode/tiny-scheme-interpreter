@@ -69,6 +69,14 @@ Value* value_macro_create(Value* params, Value* body, Value* env)
     return v;
 }
 
+Value* value_error_create(const char* message)
+{
+    Value* v = gc_alloc(VALUE_ERROR);
+    v->u.error.message = xstrdup(message);
+    v->u.error.call_stack = NIL;
+    return v;
+}
+
 void value_print(Value* v);
 
 void print_list(Value* v)
@@ -127,6 +135,9 @@ void value_print(Value* v)
         break;
     case VALUE_MACRO:
         printf("<macro>");
+        break;
+    case VALUE_ERROR:
+        printf("<error>: %s", v->u.error.message);
         break;
     default:
         printf("<unknown>");

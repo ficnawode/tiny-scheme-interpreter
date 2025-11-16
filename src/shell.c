@@ -1,4 +1,5 @@
 #include "shell.h"
+#include "error.h"
 #include "eval.h"
 #include "gc.h"
 #include "parser.h"
@@ -46,8 +47,10 @@ int repl(Value* env)
 
     for (;;) {
         char* line = read_input();
-        if (!line)
+        if (!line) {
+            printf("\nGoodbye.\n");
             break;
+        }
 
         Value* expr = parse_from_string(line);
         free(line);
@@ -57,11 +60,17 @@ int repl(Value* env)
         }
 
         GC_PUSH(expr);
-        Value* res = eval(expr, env);
+        Value* result = eval(expr, env);
         GC_POP();
-
-        value_print(res);
-        printf("\n");
+        if (!result) {
+            printf("Eval returned null? \n");
+            exit(1);
+        } else if (result->type == VALUE_ERROR) {
+            print_runtime_error(result);
+        } else {
+            value_print(result);
+            printf("\n");
+        }
     }
 
     return 0;

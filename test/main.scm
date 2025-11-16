@@ -50,7 +50,7 @@
    (assert-eq? 'b (cdr (cons 'a 'b)))
    (assert-eq? 'b (car (cdr '(a b c))))
 
-   ; (assert-eq 3 (length '(a b c)))
+   (assert-eq 3 (length '(a b c)))
    (assert-eq 0 (length '()))
    (assert-eq 1 (length '(1)))
    (assert-eq 4 (length '(1 "two" (3 4) #t))) 
@@ -179,12 +179,12 @@
   (assert-equal? 'b (cond ((assoc 'y '((x a) (y b))) => cadr) (else #f)))
   (assert-equal? #f (cond ((assoc 'z '((x a) (y b))) => cadr)(else #f)))
 
-  ; If I implement assert-error:
-  ; (cond (else) )
-  ; (cond (else 1) (2))
-  ; (cond (test =>))
-  ; (cond (test => proc extra))
-  ; (cond 'not-a-list)
+  (assert-no-error? (cond))
+  (assert-error? (cond (else) ))
+  (assert-error?  (cond (else 1) (2)))
+  (assert-error?  (cond (test =>)))
+  (assert-error?  (cond (test => proc extra)))
+  (assert-error? (cond 'not-a-list))
 )
 
 (declare-test stdlib-boolean-ops
@@ -204,5 +204,31 @@
   (assert-equal? 'is-true (or #f #f 'is-true 'another-true))
   (assert-equal? #f (or #f #f #f))
 )
+
+(declare-test runtime-errors
+  (assert-no-error? 1)
+            
+  (assert-error? (define 1))
+  (assert-error? (load))
+  (assert-error? (load 1))
+  (assert-error? (set! 1))
+  (assert-error? (set! unbound-symbol))
+  (assert-error? (set! unbound-symbol 1))
+  (assert-error? (set! unbound-symbol 1 2 3 ))
+  (assert-error? (apply ()))
+  (assert-error? (apply () 1))
+  (assert-error? (1 2)) ; attempt to call non-function
+  (assert-error? ,@1 )
+
+  (define-macro (deep-macro n)
+    (if (= n 0)
+      0  
+      `(deep-macro ,(- n 1)))) 
+  (assert-no-error?(deep-macro 98))
+  (assert-eq 0 (deep-macro 98))
+  (assert-error?(deep-macro 99))
+
+)
+
 
 (run-all-tests)

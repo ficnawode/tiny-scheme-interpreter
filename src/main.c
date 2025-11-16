@@ -1,3 +1,4 @@
+#include "error.h"
 #include "eval.h"
 #include "gc.h"
 #include "intern.h"
@@ -32,12 +33,20 @@ int main(int argc, char** argv)
 
     gc_init();
     intern_init();
+    register_call_stack();
     Value* global_env = make_global_env();
     gc_register_root(&global_env);
     load_stdlib(global_env);
 
     if (argc == 2) {
         Value* result = eval_file(argv[1], global_env);
+
+        if (result && result->type == VALUE_ERROR) {
+            print_runtime_error(result);
+            gc_destroy();
+            return 1;
+        }
+
         if (result) {
             value_print(result);
             printf("\n");

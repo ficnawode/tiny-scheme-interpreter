@@ -1,4 +1,5 @@
 #include "prims.h"
+#include "error.h"
 #include "eval.h"
 #include "gc.h"
 #include "intern.h"
@@ -101,7 +102,7 @@ Value* prim_div(Value* args)
         }
         if (a->u.integer == 0) {
             fprintf(stderr, "/: division by zero\n");
-            return NIL;
+            return runtime_error("division by zero");
         }
         result /= a->u.integer;
     }
@@ -314,16 +315,24 @@ Value* prim_null_p(Value* args)
 Value* prim_error(Value* args)
 {
     if (args == NIL) {
-        fprintf(stderr, "Error: no message\n");
-    } else {
-        for (Value* p = args; p != NIL; p = CDR(p)) {
-            value_print(CAR(p));
-            fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\n");
+        return runtime_error("malformed user error - error procedure called with no arguments");
     }
-    exit(1);
-    return NIL;
+
+    Value* msg = CAR(args);
+    if (msg->type != VALUE_STRING) {
+        return runtime_error("malformed user error - first argument must be a string message");
+    }
+
+    return runtime_error(msg->u.string);
+}
+
+Value* prim_error_object_p(Value* args)
+{
+    if (!expect_n_args(args, 1, "error?")) {
+        return NIL;
+    }
+    Value* a = CAR(args);
+    return (a->type == VALUE_ERROR) ? intern("#t") : intern("#f");
 }
 
 PrimTable get_prims(void)
@@ -355,7 +364,8 @@ PrimTable get_prims(void)
 
         { "display", prim_display },
         { "newline", prim_newline },
-        { "error", prim_error }
+        { "error", prim_error },
+        { "error-object?", prim_error_object_p }
     };
     size_t prims_len = sizeof(prims) / sizeof(prims[0]);
     return (PrimTable) { .prims = prims, .count = prims_len };
