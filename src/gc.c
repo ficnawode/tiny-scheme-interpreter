@@ -178,7 +178,9 @@ void gc_collect(void)
 
     sweep();
 
-    gc_threshold *= 2;
+    gc_threshold = total_allocated_bytes * 2;
+    if (gc_threshold < GC_MIN_THRESHOLD)
+        gc_threshold = GC_MIN_THRESHOLD;
 }
 
 void gc_destroy(void)

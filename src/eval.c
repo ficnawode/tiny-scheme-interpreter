@@ -556,7 +556,7 @@ static Value* expand_macro_call(Value* macro, Value* full_expr)
 #define MAX_MACRO_RECURSION_DEPTH 100
 Value* expand_macro(Value* expr, Value* env)
 {
-    GC_PUSH(expr); /* root for current expr */
+    GC_PUSH(expr);
     for (int i = 0; i < MAX_MACRO_RECURSION_DEPTH; i++) {
         if (expr->type != VALUE_PAIR) {
             GC_POP();
@@ -591,7 +591,7 @@ Value* expand_macro(Value* expr, Value* env)
 
 Value* eval(Value* expr, Value* env)
 {
-    int initial_stack_depth = call_stack_length();
+    Value* initial_stack = get_call_stack();
 
     GC_PUSH(expr);
     GC_PUSH(env);
@@ -608,9 +608,7 @@ Value* eval(Value* expr, Value* env)
         EvalResult r = eval_dispatch(expr, env);
 
         if (r.kind == RES_VALUE) {
-            while (call_stack_length() > initial_stack_depth) {
-                call_stack_pop();
-            }
+            set_call_stack(initial_stack);
             GC_POP();
             GC_POP();
             return r.v.value;
