@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "error.h"
 #include "gc.h"
 #include "intern.h"
 #include "pair.h"
@@ -8,17 +9,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PRINT_ERROR_HERE(p, fmt, ...)        \
+    do {                                     \
+        print_parser_error((p)->current.loc, \
+            (p)->lexer->buffer.data,         \
+            fmt, ##__VA_ARGS__);             \
+    } while (0)
+
 void parser_advance(Parser* ctx)
 {
     token_cleanup(&ctx->current);
     ctx->current = lexer_next(ctx->lexer);
 }
 
-Parser* parser_create(const char* source)
+Parser* parser_create(const char* source, const char* filename)
 {
     Parser* ctx = xmalloc(sizeof(Parser));
     memset(ctx, 0, sizeof(Parser));
-    ctx->lexer = lexer_create(source);
+    ctx->lexer = lexer_create(source, filename);
     parser_advance(ctx);
     return ctx;
 }
@@ -30,43 +38,73 @@ void parser_cleanup(Parser* ctx)
     free(ctx);
 }
 
-static Value* parse_list_dotted_tail(Parser* p, Value* head, Value* tail)
+static Value* read_list_items(Parser* p, Value** out_rev)
 {
-    GC_PUSH(head);
-    GC_PUSH(tail);
+    Value* rev = NIL;
+    GC_PUSH(rev);
 
-    if (head == NIL) {
-        fprintf(stderr, "Syntax error: dot operator in invalid context\n");
+    while (p->current.type != TOK_RPAREN && p->current.type != TOK_DOT) {
+
+        Value* expr = parse_expr(p);
+        if (!expr) {
+            PRINT_ERROR_HERE(p, "encountered null expr while parsing list");
+            GC_POP();
+            return NULL;
+        }
+
+        GC_PUSH(expr);
+        rev = CONS(expr, rev);
         GC_POP();
-        GC_POP();
-        return NULL;
+
+        if (p->current.type == TOK_EOF) {
+            PRINT_ERROR_HERE(p, "missing ')'");
+            GC_POP();
+            return NULL;
+        }
     }
+
+    *out_rev = rev;
+    GC_POP();
+    return rev;
+}
+
+static Value* finish_proper_list(Value* rev, Parser* p)
+{
+    parser_advance(p);
+    return list_reverse(rev);
+}
+
+static Value* finish_dotted_list(Value* rev, Parser* p)
+{
     parser_advance(p);
 
-    Value* cdr_val = parse_expr(p);
-    GC_PUSH(cdr_val);
-    if (!cdr_val) {
-        GC_POP();
-        GC_POP();
-        GC_POP();
+    if (rev == NIL) {
+        PRINT_ERROR_HERE(p, "dot in invalid context");
+        return NULL;
+    }
+
+    Value* tail = parse_expr(p);
+    if (!tail) {
+        PRINT_ERROR_HERE(p, "expecting an expression");
         return NULL;
     }
 
     if (p->current.type != TOK_RPAREN) {
-        fprintf(stderr, "Syntax error: expected ')' after dotted pair\n");
-        GC_POP();
-        GC_POP();
-        GC_POP();
+        PRINT_ERROR_HERE(p, "expected ')' after dotted pair");
         return NULL;
     }
-
     parser_advance(p);
-    CDR(tail) = cdr_val;
+
+    Value* result = list_reverse(rev);
+    GC_PUSH(result);
+
+    Value* last = result;
+    while (CDR(last) != NIL)
+        last = CDR(last);
+    CDR(last) = tail;
 
     GC_POP();
-    GC_POP();
-    GC_POP();
-    return head;
+    return result;
 }
 
 static Value* parse_list(Parser* p)
@@ -76,53 +114,16 @@ static Value* parse_list(Parser* p)
         return NIL;
     }
 
-    Value* head = NIL;
-    Value* tail = NIL;
-
-    GC_PUSH(head);
-    GC_PUSH(tail);
-
-    for (;;) {
-        if (p->current.type == TOK_RPAREN) {
-            parser_advance(p);
-            GC_POP();
-            GC_POP();
-            return head;
-        }
-
-        if (p->current.type == TOK_DOT) {
-            head = parse_list_dotted_tail(p, head, tail);
-            GC_POP();
-            GC_POP();
-            return head;
-        }
-
-        Value* expr = parse_expr(p);
-        if (!expr) {
-            GC_POP();
-            GC_POP();
-            return NULL;
-        }
-
-        GC_PUSH(expr);
-        Value* node = CONS(expr, NIL);
-        GC_POP();
-
-        if (head == NIL) {
-            head = node;
-            tail = node;
-        } else {
-            CDR(tail) = node;
-            tail = node;
-        }
-
-        if (p->current.type == TOK_EOF) {
-            fprintf(stderr, "Syntax error: missing ')'\n");
-            GC_POP();
-            GC_POP();
-            return NULL;
-        }
+    Value* rev = NIL;
+    if (!read_list_items(p, &rev)) {
+        return NULL;
     }
+
+    if (p->current.type == TOK_RPAREN) {
+        return finish_proper_list(rev, p);
+    }
+
+    return finish_dotted_list(rev, p);
 }
 
 static Value* wrap_with_symbol(const char* sym_name, Parser* p)
@@ -169,19 +170,22 @@ Value* parse_expr(Parser* p)
         parser_advance(p);
         return str;
     case TOK_RPAREN:
-        fprintf(stderr, "Unexpected ')'\n");
-        return NIL;
+        PRINT_ERROR_HERE(p, "Unexpected ')'");
+        return NULL;
     case TOK_EOF:
         return NULL;
+    case TOK_ERROR:
+        PRINT_ERROR_HERE(p, "Token Error: %s", p->current.lexeme);
+        return NULL;
     default:
-        fprintf(stderr, "Unknown token\n");
-        return NIL;
+        PRINT_ERROR_HERE(p, "Unknown token: %s", p->current.lexeme);
+        return NULL;
     }
 }
 
 Value* parse_from_string(const char* s)
 {
-    Parser* p = parser_create(s);
+    Parser* p = parser_create(s, "<repl>");
     Value* res = parse_expr(p);
     parser_cleanup(p);
     return res;

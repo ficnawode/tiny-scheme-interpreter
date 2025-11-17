@@ -6,6 +6,7 @@ typedef struct {
 } Position;
 
 typedef struct {
+    const char* filename;
     Position start;
     Position end;
 } Location;
@@ -36,11 +37,12 @@ typedef struct {
         const char* data;
         int index;
     } buffer;
+    const char* filename;
     Position cursor;
     char* lexeme;
 } Lexer;
 
-Lexer* lexer_create(const char* source);
+Lexer* lexer_create(const char* source, const char* filename);
 void lexer_cleanup(Lexer* ctx);
 Token lexer_next(Lexer* ctx);
 

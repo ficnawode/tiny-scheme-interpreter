@@ -9,7 +9,8 @@ typedef enum {
     VALUE_PAIR,
     VALUE_PRIMITIVE,
     VALUE_CLOSURE,
-    VALUE_MACRO
+    VALUE_MACRO,
+    VALUE_ERROR
 } ValueType;
 
 typedef struct Value Value;
@@ -43,6 +44,12 @@ struct Value {
         {
             Value *params, *body, *env;
         } macro;
+
+        struct
+        {
+            char* message;
+            Value* call_stack;
+        } error;
     } u;
 };
 
@@ -55,6 +62,7 @@ Value* value_cons_create(Value* a, Value* d);
 Value* value_prim_create(const char* name, PrimFn f);
 Value* value_closure_create(Value* params, Value* body, Value* env);
 Value* value_macro_create(Value* params, Value* body, Value* env);
+Value* value_error_create(const char* message);
 
 bool value_is_true(Value* v);
 

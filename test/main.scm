@@ -45,6 +45,29 @@
   (assert (not (eq? #f '())))
   )
 
+(declare-test primitives-list-operations
+   (assert-eq? 'a (car (cons 'a 'b)))
+   (assert-eq? 'b (cdr (cons 'a 'b)))
+   (assert-eq? 'b (car (cdr '(a b c))))
+
+   (assert-eq 3 (length '(a b c)))
+   (assert-eq 0 (length '()))
+   (assert-eq 1 (length '(1)))
+   (assert-eq 4 (length '(1 "two" (3 4) #t))) 
+
+   (assert-equal? '(1 2 3 4) (append '(1 2) '(3 4)))
+   (assert-equal? '(a b c d e) (append '(a) '(b c) '(d e)))
+   (assert-equal? '(1 2) (append '() '(1 2))) 
+   (assert-equal? '(1 2) (append '(1 2) '())) 
+   (assert-equal? '() (append '() '()))
+   (assert-equal? '() (append)) 
+
+   (assert-equal? '(1 2 3 . 4) (append '(1 2) '(3 . 4)))
+   (assert-equal? '(1 2 . 3) (append '(1 2) 3))
+
+   (define single-arg-list '(a b c))
+   (assert (equal? single-arg-list (append single-arg-list)))
+   )
 
 (declare-test scope-lexical-closures
   (define (make-adder num-to-add)
@@ -156,12 +179,12 @@
   (assert-equal? 'b (cond ((assoc 'y '((x a) (y b))) => cadr) (else #f)))
   (assert-equal? #f (cond ((assoc 'z '((x a) (y b))) => cadr)(else #f)))
 
-  ; If I implement assert-error:
-  ; (cond (else) )
-  ; (cond (else 1) (2))
-  ; (cond (test =>))
-  ; (cond (test => proc extra))
-  ; (cond 'not-a-list)
+  (assert-no-error? (cond))
+  (assert-error? (cond (else) ))
+  (assert-error?  (cond (else 1) (2)))
+  (assert-error?  (cond (test =>)))
+  (assert-error?  (cond (test => proc extra)))
+  (assert-error? (cond 'not-a-list))
 )
 
 (declare-test stdlib-boolean-ops
@@ -180,6 +203,89 @@
   (assert (or #f '()) )
   (assert-equal? 'is-true (or #f #f 'is-true 'another-true))
   (assert-equal? #f (or #f #f #f))
+)
+
+(declare-test runtime-errors
+  (assert-no-error? 1)
+            
+  (assert-error? (define 1))
+  (assert-error? (load))
+  (assert-error? (load 1))
+  (assert-error? (set! 1))
+  (assert-error? (set! unbound-symbol))
+  (assert-error? (set! unbound-symbol 1))
+  (assert-error? (set! unbound-symbol 1 2 3 ))
+  (assert-error? (apply ()))
+  (assert-error? (apply () 1))
+  (assert-error? (1 2)) ; attempt to call non-function
+  (assert-error? ,@1 )
+
+  (define-macro (deep-macro n)
+    (if (= n 0)
+      0  
+      `(deep-macro ,(- n 1)))) 
+  (assert-no-error?(deep-macro 98))
+  (assert-eq 0 (deep-macro 98))
+  (assert-error?(deep-macro 99))
+
+)
+
+(declare-test primitive-errors
+  (assert-error? (+ 1 "two"))
+  (assert-error? (+ 1 2 3 "four"))
+  (assert-error? (- 5 "two"))
+  (assert-error? (- "five" 2))
+  (assert-error? (* 5 "two"))
+  (assert-error? (/ 10 "two"))
+  (assert-error? (/))
+  (assert-error? (/ 10))
+
+  (assert-error? (= 1))
+  (assert-error? (= 1 2 3))
+  (assert-error? (= 1 "cat"))
+  (assert-error? (< 1))
+  (assert-error? (< 1 2 3))
+  (assert-error? (< 1 "2"))
+  (assert-error? (> 1))
+  (assert-error? (> 1 2 3))
+  (assert-error? (> "1" 2))
+
+  (assert-error? (cons 1))
+  (assert-error? (cons 1 2 3))
+  (assert-error? (car))
+  (assert-error? (car '(1) '(2)))
+  (assert-error? (car 1))
+  (assert-error? (car "string"))
+  (assert-error? (cdr))
+  (assert-error? (cdr '(1) '(2)))
+  (assert-error? (cdr 1))
+  (assert-error? (cdr "string"))
+
+  (assert-error? (number?))
+  (assert-error? (number? 1 2))
+  (assert-error? (list?))
+  (assert-error? (list? '(1) '(2)))
+  (assert-error? (eq? 1))
+  (assert-error? (eq? 1 2 3))
+  (assert-error? (atom?))
+  (assert-error? (atom? 1 2))
+  (assert-error? (null?))
+  (assert-error? (null? '() '()))
+  (assert-error? (string?))
+  (assert-error? (string? "a" "b"))
+  (assert-error? (error-object?))
+  (assert-error? (error-object? (error "foo") (error "bar")))
+
+  (assert-error? (string-length))
+  (assert-error? (string-length "a" "b"))
+  (assert-error? (string-length 123))
+  (assert-error? (string-append "hello" 123))
+  (assert-error? (string-append 123 "world"))
+
+  (assert-error? (gensym 123))
+  (assert-error? (gensym "prefix" "extra"))
+  (assert-error? (error 123))
+  (assert-error? (error))
 )
 
 (run-all-tests)

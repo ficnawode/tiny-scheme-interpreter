@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-Lexer* lexer_create(const char* source)
+Lexer* lexer_create(const char* source, const char* filename)
 {
     Lexer* ctx = xmalloc(sizeof(Lexer));
 
@@ -15,6 +15,7 @@ Lexer* lexer_create(const char* source)
     assert(ctx->buffer.data && "Out of memory");
     ctx->buffer.index = 0;
 
+    ctx->filename = filename;
     ctx->cursor.line = 1;
     ctx->cursor.col = 1;
     return ctx;
@@ -63,7 +64,7 @@ static void skip_comments_and_whitespace(Lexer* ctx)
     }
 }
 
-static Token token_create(TokenType type, const char* lexeme,
+static Token token_create(TokenType type, const char* lexeme, const char* filename,
     Position start, Position end)
 {
     Token tok;
@@ -73,6 +74,7 @@ static Token token_create(TokenType type, const char* lexeme,
     } else {
         tok.lexeme = NULL;
     }
+    tok.loc.filename = filename;
     tok.loc.start = start;
     tok.loc.end = end;
     return tok;
@@ -114,7 +116,7 @@ static Token read_word(Lexer* ctx)
 
     if (strcmp(lex, ".") == 0) {
         Position end_pos = ctx->cursor;
-        Token tok = token_create(TOK_DOT, ".", start_pos, end_pos);
+        Token tok = token_create(TOK_DOT, ".", ctx->filename, start_pos, end_pos);
         free(lex);
         return tok;
     }
@@ -122,7 +124,7 @@ static Token read_word(Lexer* ctx)
     TokenType type = is_number_lexeme(lex) ? TOK_NUMBER : TOK_SYMBOL;
     Position end_pos = ctx->cursor;
 
-    Token tok = token_create(type, lex, start_pos, end_pos);
+    Token tok = token_create(type, lex, ctx->filename, start_pos, end_pos);
     free(lex);
     return tok;
 }
@@ -139,7 +141,7 @@ static Token read_string(Lexer* ctx)
         char c = lexer_peek(ctx);
 
         if (c == '\0') {
-            return token_create(TOK_ERROR, "Unterminated string literal",
+            return token_create(TOK_ERROR, "Unterminated string literal", ctx->filename,
                 start_pos, ctx->cursor);
         }
 
@@ -149,7 +151,7 @@ static Token read_string(Lexer* ctx)
         }
 
         if (i >= BUFSIZE - 1) {
-            return token_create(TOK_ERROR, "String literal too long",
+            return token_create(TOK_ERROR, "String literal too long", ctx->filename,
                 start_pos, ctx->cursor);
         }
 
@@ -178,7 +180,7 @@ static Token read_string(Lexer* ctx)
     }
 
     buffer[i] = '\0';
-    return token_create(TOK_STRING, buffer, start_pos, ctx->cursor);
+    return token_create(TOK_STRING, buffer, ctx->filename, start_pos, ctx->cursor);
 }
 
 Token lexer_next(Lexer* ctx)
@@ -190,33 +192,33 @@ Token lexer_next(Lexer* ctx)
     switch (c) {
     case '(':
         lexer_advance(ctx);
-        return token_create(TOK_LPAREN, "(", start_pos, ctx->cursor);
+        return token_create(TOK_LPAREN, "(", ctx->filename, start_pos, ctx->cursor);
     case ')':
         lexer_advance(ctx);
-        return token_create(TOK_RPAREN, ")", start_pos, ctx->cursor);
+        return token_create(TOK_RPAREN, ")", ctx->filename, start_pos, ctx->cursor);
     case '\'':
         lexer_advance(ctx);
-        return token_create(TOK_QUOTE, "'", start_pos, ctx->cursor);
+        return token_create(TOK_QUOTE, "'", ctx->filename, start_pos, ctx->cursor);
     case '`':
         lexer_advance(ctx);
-        return token_create(TOK_QUASIQUOTE, "`", start_pos, ctx->cursor);
+        return token_create(TOK_QUASIQUOTE, "`", ctx->filename, start_pos, ctx->cursor);
     case ',':
         lexer_advance(ctx);
         if (lexer_peek(ctx) == '@') {
             lexer_advance(ctx);
-            return token_create(TOK_UNQUOTE_SPLICING, ",@", start_pos, ctx->cursor);
+            return token_create(TOK_UNQUOTE_SPLICING, ",@", ctx->filename, start_pos, ctx->cursor);
         }
-        return token_create(TOK_UNQUOTE, ",", start_pos, ctx->cursor);
+        return token_create(TOK_UNQUOTE, ",", ctx->filename, start_pos, ctx->cursor);
     case '.':
         if (is_terminator(ctx->buffer.data[ctx->buffer.index + 1])) {
             lexer_advance(ctx);
-            return token_create(TOK_DOT, ".", start_pos, ctx->cursor);
+            return token_create(TOK_DOT, ".", ctx->filename, start_pos, ctx->cursor);
         }
         return read_word(ctx);
     case '"':
         return read_string(ctx);
     case '\0':
-        return token_create(TOK_EOF, NULL, start_pos, start_pos);
+        return token_create(TOK_EOF, NULL, ctx->filename, start_pos, start_pos);
     default:
         return read_word(ctx);
     }

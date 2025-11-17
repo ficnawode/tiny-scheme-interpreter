@@ -7,7 +7,7 @@ typedef struct Parser {
     Token current;
 } Parser;
 
-Parser* parser_create(const char* source);
+Parser* parser_create(const char* source, const char* filename);
 void parser_cleanup(Parser* p);
 
 void parser_advance(Parser* p);

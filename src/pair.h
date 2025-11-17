@@ -12,3 +12,6 @@
 #define CADDDR(x) CAR(CDR(CDR(CDR(x))))
 
 #define CONS(a, d) value_cons_create((a), (d))
+
+Value* list_reverse(Value* list);
+int list_length(Value* list);

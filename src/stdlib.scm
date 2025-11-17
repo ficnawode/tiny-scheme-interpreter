@@ -87,6 +87,22 @@
                   (reverse-iter (cdr original) (cons (car original) reversed-so-far))))))
     (reverse-iter lst '())))
 
+(define (length lst)
+  (if (null? lst)
+      0
+      (+ 1 (length (cdr lst)))))
+
+(define (append . lists)
+  (letrec ((append2
+            (lambda (lst1 lst2)
+              (if (null? lst1)
+                  lst2
+                  (cons (car lst1)
+                        (append2 (cdr lst1) lst2))))))
+    (cond
+      ((null? lists) '())
+      ((null? (cdr lists)) (car lists))
+      (else (append2 (car lists) (apply append (cdr lists)))))))
 
 (define (equal? a b)
   (cond
