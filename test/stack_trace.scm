@@ -1,3 +1,16 @@
-(define (div0 a) (/ a 0))
-(define (div02 a) (div0 a))
-(div02 5)
+
+(define (game-turn-A count)
+  (display "Player A's turn. Count is: ") (display count) (newline)
+
+  (if (= count 0)
+      (error "Boom! Game over.")
+      (game-turn-B (- count 1))))
+
+
+(define (game-turn-B count)
+  (display "Player B's turn. Count is: ") (display count) (newline)
+  
+  (game-turn-A (- count 1)))
+
+
+(game-turn-B 3)

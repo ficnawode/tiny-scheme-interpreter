@@ -373,6 +373,7 @@ static EvalResult eval_pair(Value* expr, Value* env)
     GC_PUSH(args);
     args = eval_args(CDR(expr), env);
 
+    debug_call_stack_push(expr);
     EvalResult r = apply_proc(proc, args);
 
     GC_POP();
@@ -591,7 +592,7 @@ Value* expand_macro(Value* expr, Value* env)
 
 Value* eval(Value* expr, Value* env)
 {
-    Value* initial_stack = get_call_stack();
+    Value* initial_stack = debug_call_stack_get();
 
     GC_PUSH(expr);
     GC_PUSH(env);
@@ -604,11 +605,10 @@ Value* eval(Value* expr, Value* env)
             return expr;
         }
 
-        call_stack_push(expr);
         EvalResult r = eval_dispatch(expr, env);
 
         if (r.kind == RES_VALUE) {
-            set_call_stack(initial_stack);
+            debug_call_stack_set(initial_stack);
             GC_POP();
             GC_POP();
             return r.v.value;

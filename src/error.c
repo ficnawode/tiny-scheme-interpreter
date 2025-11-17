@@ -50,18 +50,18 @@ void print_parser_error(Location loc, const char* source_code, const char* forma
     printf("%*s%.*s\n\n", col - 1, "", len, underlines);
 }
 
-void register_call_stack(void)
+void debug_call_stack_register(void)
 {
     gc_register_root(&call_stack);
     call_stack = NIL;
 }
 
-void call_stack_push(Value* expr)
+void debug_call_stack_push(Value* expr)
 {
     call_stack = CONS(expr, call_stack);
 }
 
-void call_stack_pop(void)
+void debug_call_stack_pop(void)
 {
     if (call_stack != NIL) {
         call_stack = CDR(call_stack);
@@ -110,21 +110,16 @@ void print_runtime_error(Value* err)
     }
 }
 
-void call_stack_clear(void)
-{
-    call_stack = NIL;
-}
-
-int call_stack_length(void)
+int debug_call_stack_length(void)
 {
     return list_length(call_stack);
 }
 
-Value* get_call_stack(void)
+Value* debug_call_stack_get(void)
 {
     return call_stack;
 }
-void set_call_stack(Value* cs)
+void debug_call_stack_set(Value* cs)
 {
     call_stack = cs;
 }

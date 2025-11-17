@@ -7,10 +7,9 @@ void print_parser_error(Location loc, const char* source_code, const char* forma
 Value* runtime_error(const char* fmt, ...);
 void print_runtime_error(Value* err);
 
-void register_call_stack(void);
-void call_stack_push(Value* val);
-void call_stack_pop(void);
-void call_stack_clear(void);
-int call_stack_length(void);
-Value* get_call_stack(void);
-void set_call_stack(Value* cs);
+void debug_call_stack_register(void);
+void debug_call_stack_push(Value* val);
+void debug_call_stack_pop(void);
+int debug_call_stack_length(void);
+Value* debug_call_stack_get(void);
+void debug_call_stack_set(Value* cs);

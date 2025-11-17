@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 
     gc_init();
     intern_init();
-    register_call_stack();
+    debug_call_stack_register();
     Value* global_env = make_global_env();
     gc_register_root(&global_env);
     load_stdlib(global_env);
