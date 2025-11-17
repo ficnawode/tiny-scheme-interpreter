@@ -1,7 +1,6 @@
 #include "prims.h"
 #include "error.h"
 #include "eval.h"
-#include "gc.h"
 #include "intern.h"
 #include "pair.h"
 #include "util.h"
