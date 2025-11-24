@@ -92,10 +92,9 @@ static bool is_reserved_keyword(Value* sym)
     return false;
 }
 
-static void list_builder_init(ListBuilder* builder)
+static ListBuilder list_builder_create()
 {
-    builder->head = NIL;
-    builder->tail = NIL;
+    return (ListBuilder) { NIL, NIL };
 }
 
 static void list_builder_add(ListBuilder* builder, Value* item)
@@ -120,9 +119,9 @@ static void list_builder_set_dotted_tail(ListBuilder* builder, Value* tail_value
     }
 }
 
-static void captures_init(CaptureMap* captures)
+static CaptureMap captures_create(void)
 {
-    captures->binding_list = NIL;
+    return (CaptureMap) { NIL };
 }
 
 static void captures_add(CaptureMap* captures, Value* var, Value* value)
@@ -175,9 +174,9 @@ static void captures_reverse_groups(CaptureMap* captures, Value* vars_to_reverse
     }
 }
 
-static void renames_init(RenameMap* renames)
+RenameMap renames_create(void)
 {
-    renames->list = NIL;
+    return (RenameMap) { NIL };
 }
 
 static Value* renames_lookup(RenameMap* renames, Value* sym)
@@ -255,8 +254,7 @@ static bool match_ellipsis_sequence(
 
     Value* input_cursor = input_list;
     for (int i = 0; i < repetition_count; ++i) {
-        CaptureMap local_captures;
-        captures_init(&local_captures);
+        CaptureMap local_captures = captures_create();
         GC_PUSH(local_captures.binding_list);
 
         if (!pattern_match(repeated_pattern, CAR(input_cursor), literals, &local_captures)) {
@@ -372,8 +370,7 @@ static void transcribe_ellipsis(
     }
 
     for (int i = 0; i < count; ++i) {
-        CaptureMap local_captures;
-        captures_init(&local_captures);
+        CaptureMap local_captures = captures_create();
         GC_PUSH(local_captures.binding_list);
 
         for (Value* v = vars; v != NIL; v = CDR(v)) {
@@ -397,8 +394,7 @@ static void transcribe_ellipsis(
 
 static Value* transcribe_list(Value* template_list, CaptureMap* captures, Value* def_env, RenameMap* renames)
 {
-    ListBuilder builder;
-    list_builder_init(&builder);
+    ListBuilder builder = list_builder_create();
     GC_PUSH(builder.head);
 
     Value* cursor = template_list;
@@ -462,8 +458,7 @@ Value* expand_syntax_rules(Value* macro_value, Value* input_expr)
     Value* input_args = CDR(input_expr);
 
     for (size_t i = 0; i < rules->rule_count; ++i) {
-        CaptureMap captures;
-        captures_init(&captures);
+        CaptureMap captures = captures_create();
         GC_PUSH(captures.binding_list);
 
         if (pattern_match(rules->rules[i].pattern,
@@ -471,8 +466,7 @@ Value* expand_syntax_rules(Value* macro_value, Value* input_expr)
                 rules->literals,
                 &captures)) {
 
-            RenameMap renames;
-            renames_init(&renames);
+            RenameMap renames = renames_create();
             GC_PUSH(renames.list);
 
             Value* result = transcribe(rules->rules[i].template, &captures, rules->defining_env, &renames);
