@@ -26,7 +26,11 @@ Value* list_reverse(Value* list)
 
 Value* list_append(Value* a, Value* b)
 {
+    GC_PUSH(a);
+    GC_PUSH(b);
     if (a == NIL) {
+        GC_POP();
+        GC_POP();
         return b;
     }
 
@@ -51,6 +55,8 @@ Value* list_append(Value* a, Value* b)
     } else {
         result = b;
     }
+    GC_POP();
+    GC_POP();
     GC_POP();
 
     return result;

@@ -37,9 +37,13 @@ Value* value_string_create(const char* s)
 
 Value* value_cons_create(Value* a, Value* d)
 {
+    GC_PUSH(a);
+    GC_PUSH(d);
     Value* v = gc_alloc(VALUE_PAIR);
     v->u.pair.car = a;
     v->u.pair.cdr = d;
+    GC_POP();
+    GC_POP();
     return v;
 }
 
@@ -53,19 +57,31 @@ Value* value_prim_create(const char* name, PrimFn f)
 
 Value* value_closure_create(Value* params, Value* body, Value* env)
 {
+    GC_PUSH(params);
+    GC_PUSH(body);
+    GC_PUSH(env);
     Value* v = gc_alloc(VALUE_CLOSURE);
     v->u.closure.params = params;
     v->u.closure.body = body;
     v->u.closure.env = env;
+    GC_POP();
+    GC_POP();
+    GC_POP();
     return v;
 }
 
 Value* value_macro_create(Value* params, Value* body, Value* env)
 {
+    GC_PUSH(params);
+    GC_PUSH(body);
+    GC_PUSH(env);
     Value* v = gc_alloc(VALUE_MACRO);
     v->u.macro.params = params;
     v->u.macro.body = body;
     v->u.macro.env = env;
+    GC_POP();
+    GC_POP();
+    GC_POP();
     return v;
 }
 
@@ -84,7 +100,7 @@ Value* value_error_create(const char* message)
     return v;
 }
 
-bool value_is_true(Value* v)
+bool value_is_true(const Value* v)
 {
     if (v && v->type == VALUE_SYMBOL && strcmp(v->u.symbol, "#f") == 0) {
         return false;
@@ -92,7 +108,7 @@ bool value_is_true(Value* v)
     return true;
 }
 
-bool value_equal(Value* a, Value* b)
+bool value_equal(const Value* a, const Value* b)
 {
     if (!a || !b) {
         return false;
