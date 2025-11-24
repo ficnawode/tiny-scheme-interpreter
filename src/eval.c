@@ -533,6 +533,9 @@ static EvalResult eval_dispatch(Value* expr, Value* env)
     case VALUE_CLOSURE:
     case VALUE_STRING:
     case VALUE_ERROR:
+    case VALUE_VECTOR:
+    case VALUE_MACRO:
+    case VALUE_SYNTAX_RULES:
         return result_value(expr);
     case VALUE_SYMBOL:
         return result_value(eval_symbol(expr, env));

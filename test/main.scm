@@ -434,4 +434,33 @@
   (assert-error? (must-say-yes no))
 )
 
+(declare-test vectors-basic
+  (assert (vector? (make-vector 5)))
+  (assert (vector? #(1 2 3)))
+  (assert (not (vector? '(1 2 3))))
+  
+  (assert-eq 3 (vector-length #(1 2 3)))
+  (assert-eq 0 (vector-length #()))
+)
+
+(declare-test vectors-access
+  (define v #(10 20 30))
+  (assert-eq 10 (vector-ref v 0))
+  (assert-eq 30 (vector-ref v 2))
+  
+  (vector-set! v 1 99)
+  (assert-eq 99 (vector-ref v 1))
+)
+
+(declare-test vectors-conversion
+  (define l '(a b c))
+  (define v #(a b c))
+  (assert-equal? l (vector->list v))
+  (assert-equal? v (list->vector l))
+)
+
+(declare-test vectors-fill
+  (define v (make-vector 3 'x))
+  (assert-equal? #(x x x) v))
+
 (run-all-tests)

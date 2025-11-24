@@ -110,6 +110,11 @@ static void mark(Value* v)
         mark(v->u.pair.car);
         mark(v->u.pair.cdr);
         break;
+    case VALUE_VECTOR:
+        for (size_t i = 0; i < v->u.vector.length; ++i) {
+            mark(v->u.vector.data[i]);
+        }
+        break;
     case VALUE_CLOSURE:
         mark(v->u.closure.params);
         mark(v->u.closure.body);
@@ -145,6 +150,11 @@ static void free_value_internals(Value* v)
     case VALUE_STRING:
         free(v->u.string);
         return;
+    case VALUE_VECTOR:
+        if (v->u.vector.data) {
+            free(v->u.vector.data);
+        }
+        break;
     case VALUE_ERROR:
         free(v->u.error.message);
         return;

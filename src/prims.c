@@ -1,6 +1,7 @@
 #include "prims.h"
 #include "error.h"
 #include "eval.h"
+#include "gc.h"
 #include "intern.h"
 #include "pair.h"
 #include "util.h"
@@ -186,6 +187,155 @@ Value* prim_list_p(Value* args)
     }
 }
 
+Value* prim_vector_p(Value* args)
+{
+    if (list_length(args) != 1) {
+        return runtime_error("vector?: expects 1 argument");
+    }
+    return (CAR(args)->type == VALUE_VECTOR) ? intern("#t") : intern("#f");
+}
+
+Value* prim_make_vector(Value* args)
+{
+    int len = list_length(args);
+    if (len < 1 || len > 2) {
+        return runtime_error("make-vector: expects 1 or 2 arguments");
+    }
+
+    Value* k = CAR(args);
+    if (k->type != VALUE_INT) {
+        return runtime_error("make-vector: size must be an integer");
+    }
+    if (k->u.integer < 0) {
+        return runtime_error("make-vector: negative size");
+    }
+
+    Value* fill = (len == 2) ? CADR(args) : value_int_create(0);
+    return value_vector_create(k->u.integer, fill);
+}
+
+Value* prim_vector(Value* args)
+{
+    int len = list_length(args);
+    Value* vec = value_vector_create(len, NULL);
+    Value* p = args;
+    for (int i = 0; i < len; i++) {
+        vec->u.vector.data[i] = CAR(p);
+        p = CDR(p);
+    }
+    return vec;
+}
+
+Value* prim_vector_length(Value* args)
+{
+    if (list_length(args) != 1) {
+        return runtime_error("vector-length: expects 1 argument");
+    }
+    Value* v = CAR(args);
+    if (v->type != VALUE_VECTOR) {
+        return runtime_error("vector-length: argument must be a vector");
+    }
+    return value_int_create((long)v->u.vector.length);
+}
+
+Value* prim_vector_ref(Value* args)
+{
+    if (list_length(args) != 2) {
+        return runtime_error("vector-ref: expects 2 arguments");
+    }
+    Value* vec = CAR(args);
+    Value* k = CADR(args);
+
+    if (vec->type != VALUE_VECTOR) {
+        return runtime_error("vector-ref: first arg must be a vector");
+    }
+    if (k->type != VALUE_INT) {
+        return runtime_error("vector-ref: index must be an integer");
+    }
+
+    long idx = k->u.integer;
+    if (idx < 0 || idx >= (long)vec->u.vector.length) {
+        return runtime_error("vector-ref: index %ld out of bounds", idx);
+    }
+    return vec->u.vector.data[idx];
+}
+
+Value* prim_vector_set(Value* args)
+{
+    if (list_length(args) != 3) {
+        return runtime_error("vector-set!: expects 3 arguments");
+    }
+    Value* vec = CAR(args);
+    Value* k = CADR(args);
+    Value* obj = CADDR(args);
+
+    if (vec->type != VALUE_VECTOR) {
+        return runtime_error("vector-set!: first arg must be a vector");
+    }
+    if (k->type != VALUE_INT) {
+        return runtime_error("vector-set!: index must be an integer");
+    }
+
+    long idx = k->u.integer;
+    if (idx < 0 || idx >= (long)vec->u.vector.length) {
+        return runtime_error("vector-set!: index %ld out of bounds", idx);
+    }
+
+    vec->u.vector.data[idx] = obj;
+    return obj;
+}
+
+Value* prim_vector_to_list(Value* args)
+{
+    if (list_length(args) != 1) {
+        return runtime_error("vector->list: expected 1 argument");
+    }
+    Value* vec = CAR(args);
+    if (vec->type != VALUE_VECTOR) {
+        return runtime_error("vector->list: expected vector");
+    }
+
+    Value* head = NIL;
+    Value* tail = NIL;
+
+    GC_PUSH(head);
+
+    for (size_t i = 0; i < vec->u.vector.length; ++i) {
+        Value* item = vec->u.vector.data[i];
+        Value* new_pair = CONS(item, NIL);
+
+        if (head == NIL) {
+            head = tail = new_pair;
+        } else {
+            CDR(tail) = new_pair;
+            tail = new_pair;
+        }
+    }
+
+    GC_POP();
+    return head;
+}
+
+Value* prim_list_to_vector(Value* args)
+{
+    if (list_length(args) != 1) {
+        return runtime_error("list->vector: expected 1 argument");
+    }
+    Value* lst = CAR(args);
+    int len = list_length(lst);
+    if (len < 0) {
+        return runtime_error("list->vector: expected proper list");
+    }
+
+    Value* vec = value_vector_create(len, NIL);
+    Value* curr = lst;
+    for (int i = 0; i < len; ++i) {
+        vec->u.vector.data[i] = CAR(curr);
+        curr = CDR(curr);
+    }
+    return vec;
+}
+
 Value* prim_eq_p(Value* args)
 {
     if (list_length(args) != 2) {
@@ -329,6 +479,12 @@ PrimTable get_prims(void)
         { "car", prim_car },
         { "cdr", prim_cdr },
         { "list?", prim_list_p },
+        { "vector?", prim_vector_p },
+        { "make-vector", prim_make_vector },
+        { "vector", prim_vector },
+        { "vector-length", prim_vector_length },
+        { "vector-ref", prim_vector_ref },
+        { "vector-set!", prim_vector_set },
         { "eq?", prim_eq_p },
         { "atom?", prim_atom_p },
         { "null?", prim_null_p },

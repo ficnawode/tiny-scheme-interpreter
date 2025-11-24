@@ -202,6 +202,12 @@ Token lexer_next(Lexer* ctx)
     case '`':
         lexer_advance(ctx);
         return token_create(TOK_QUASIQUOTE, "`", ctx->filename, start_pos, ctx->cursor);
+    case '#':
+        if (ctx->buffer.data[ctx->buffer.index + 1] == '(') {
+            lexer_advance(ctx);
+            return token_create(TOK_HASH, "#", ctx->filename, start_pos, ctx->cursor);
+        }
+        return read_word(ctx);
     case ',':
         lexer_advance(ctx);
         if (lexer_peek(ctx) == '@') {

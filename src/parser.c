@@ -126,6 +126,51 @@ static Value* parse_list(Parser* p)
     return finish_dotted_list(rev, p);
 }
 
+static Value* list_to_vector(Value* list)
+{
+    int len = list_length(list);
+    Value* vec = value_vector_create(len, NULL);
+
+    Value* p = list;
+    for (int i = 0; i < len; i++) {
+        vec->u.vector.data[i] = CAR(p);
+        p = CDR(p);
+    }
+    return vec;
+}
+
+static Value* parse_vector(Parser* p)
+{
+    parser_advance(p);
+
+    if (p->current.type == TOK_RPAREN) {
+        parser_advance(p);
+        return value_vector_create(0, NULL);
+    }
+
+    Value* rev_items = NIL;
+    if (!read_list_items(p, &rev_items)) {
+        return NULL;
+    }
+
+    if (p->current.type == TOK_DOT) {
+        PRINT_ERROR_HERE(p, "dot '.' not allowed in vector literals");
+        return NULL;
+    }
+
+    if (p->current.type != TOK_RPAREN) {
+        PRINT_ERROR_HERE(p, "expected ')' to close vector");
+        return NULL;
+    }
+    parser_advance(p);
+
+    Value* proper_list = list_reverse(rev_items);
+    GC_PUSH(proper_list);
+    Value* vec = list_to_vector(proper_list);
+    GC_POP();
+    return vec;
+}
+
 static Value* wrap_with_symbol(const char* sym_name, Parser* p)
 {
     parser_advance(p);
@@ -149,6 +194,13 @@ Value* parse_expr(Parser* p)
     case TOK_LPAREN:
         parser_advance(p);
         return parse_list(p);
+    case TOK_HASH:
+        parser_advance(p);
+        if (p->current.type != TOK_LPAREN) {
+            PRINT_ERROR_HERE(p, "Expected '(' after '#' for vector literal");
+            return NULL;
+        }
+        return parse_vector(p);
     case TOK_QUOTE:
         return wrap_with_symbol("quote", p);
     case TOK_QUASIQUOTE:
