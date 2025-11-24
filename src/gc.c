@@ -1,4 +1,5 @@
 #include "gc.h"
+#include "syntax_rules.h"
 #include "util.h"
 
 #include <stddef.h>
@@ -119,6 +120,15 @@ static void mark(Value* v)
         mark(v->u.macro.body);
         mark(v->u.macro.env);
         break;
+    case VALUE_SYNTAX_RULES:
+        SyntaxRules* sr = v->u.syntax_rules;
+        mark(sr->literals);
+        mark(sr->defining_env);
+        for (size_t i = 0; i < sr->rule_count; i++) {
+            mark(sr->rules[i].pattern);
+            mark(sr->rules[i].template);
+        }
+        break;
     case VALUE_ERROR:
         mark(v->u.error.call_stack);
     default:
@@ -138,6 +148,8 @@ static void free_value_internals(Value* v)
     case VALUE_ERROR:
         free(v->u.error.message);
         return;
+    case VALUE_SYNTAX_RULES:
+        syntax_rules_free(v->u.syntax_rules);
     default:
     }
 }

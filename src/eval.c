@@ -7,6 +7,7 @@
 #include "pair.h"
 #include "parser.h"
 #include "prims.h"
+#include "syntax_rules.h"
 #include "util.h"
 
 #include <stdbool.h>
@@ -277,29 +278,44 @@ static EvalResult handle_apply(Value* expr, Value* env)
     return result;
 }
 
+static EvalResult handle_define_syntax(Value* expr, Value* env)
+{
+    return result_value(parse_define_syntax(expr, env));
+}
+
 typedef EvalResult (*SpecialFormFn)(Value*, Value*);
 
 typedef struct {
     const char* name;
     SpecialFormFn fn;
 } SpecialFormDef;
+static SpecialFormDef special_forms[] = {
+    { "quote", handle_quote },
+    { "quasiquote", handle_quasiquote },
+    { "if", handle_if },
+    { "define", handle_define },
+    { "lambda", handle_lambda },
+    { "load", handle_load_file },
+    { "define-macro", handle_define_macro },
+    { "define-syntax", handle_define_syntax },
+    { "begin", handle_begin },
+    { "set!", handle_set_bang },
+    { "apply", handle_apply },
+};
+static const size_t special_forms_count = sizeof(special_forms) / sizeof(*special_forms);
+
+bool is_evaluator_special_form(const char* name)
+{
+    for (size_t i = 0; i < special_forms_count; i++) {
+        if (strcmp(name, special_forms[i].name) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
 
 static EvalResult try_handle_special_form(Value* expr, Value* env)
 {
-    static SpecialFormDef special_forms[] = {
-        { "quote", handle_quote },
-        { "quasiquote", handle_quasiquote },
-        { "if", handle_if },
-        { "define", handle_define },
-        { "lambda", handle_lambda },
-        { "load", handle_load_file },
-        { "define-macro", handle_define_macro },
-        { "begin", handle_begin },
-        { "set!", handle_set_bang },
-        { "apply", handle_apply },
-    };
-    static const size_t special_forms_count = sizeof(special_forms) / sizeof(*special_forms);
-
     Value* op = CAR(expr);
     if (!op || op->type != VALUE_SYMBOL)
         return result_no_match();
@@ -555,6 +571,19 @@ static Value* expand_macro_call(Value* macro, Value* full_expr)
 }
 
 #define MAX_MACRO_RECURSION_DEPTH 100
+static void print_macro_debug(const Value* expr, const Value* op, const Value* expansion)
+{
+    printf("Macro Expansion [%s]:\n  Input: ", op->u.symbol);
+    value_print(expr);
+    printf("\n  Output: ");
+    if (expansion && expansion->type == VALUE_ERROR) {
+        printf("ERROR: %s", expansion->u.error.message);
+    } else {
+        value_print(expansion);
+    }
+    printf("\n\n");
+}
+
 Value* expand_macro(Value* expr, Value* env)
 {
     GC_PUSH(expr);
@@ -573,16 +602,32 @@ Value* expand_macro(Value* expr, Value* env)
         Value* macro_obj = env_lookup(env, op);
         GC_PUSH(macro_obj);
 
-        if (!macro_obj || macro_obj->type != VALUE_MACRO) {
+        if (!macro_obj) {
             GC_POP();
             GC_POP();
             return expr;
         }
 
-        expr = expand_macro_call(macro_obj, expr);
+        Value* expansion = NULL;
+
+        if (macro_obj->type == VALUE_MACRO) {
+            expansion = expand_macro_call(macro_obj, expr);
+        } else if (macro_obj->type == VALUE_SYNTAX_RULES) {
+            expansion = expand_syntax_rules(macro_obj, expr);
+        } else {
+            GC_POP();
+            GC_POP();
+            return expr;
+        }
+
+        static const int DEBUG_MACRO = 0;
+        if (DEBUG_MACRO) {
+            print_macro_debug(expr, op, expansion);
+        }
 
         GC_POP();
         GC_POP();
+        expr = expansion;
         GC_PUSH(expr);
     }
 

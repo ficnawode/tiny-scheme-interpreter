@@ -37,9 +37,13 @@ Value* value_string_create(const char* s)
 
 Value* value_cons_create(Value* a, Value* d)
 {
+    GC_PUSH(a);
+    GC_PUSH(d);
     Value* v = gc_alloc(VALUE_PAIR);
     v->u.pair.car = a;
     v->u.pair.cdr = d;
+    GC_POP();
+    GC_POP();
     return v;
 }
 
@@ -53,19 +57,38 @@ Value* value_prim_create(const char* name, PrimFn f)
 
 Value* value_closure_create(Value* params, Value* body, Value* env)
 {
+    GC_PUSH(params);
+    GC_PUSH(body);
+    GC_PUSH(env);
     Value* v = gc_alloc(VALUE_CLOSURE);
     v->u.closure.params = params;
     v->u.closure.body = body;
     v->u.closure.env = env;
+    GC_POP();
+    GC_POP();
+    GC_POP();
     return v;
 }
 
 Value* value_macro_create(Value* params, Value* body, Value* env)
 {
+    GC_PUSH(params);
+    GC_PUSH(body);
+    GC_PUSH(env);
     Value* v = gc_alloc(VALUE_MACRO);
     v->u.macro.params = params;
     v->u.macro.body = body;
     v->u.macro.env = env;
+    GC_POP();
+    GC_POP();
+    GC_POP();
+    return v;
+}
+
+Value* value_syntax_rules_create(SyntaxRules* sr)
+{
+    Value* v = gc_alloc(VALUE_SYNTAX_RULES);
+    v->u.syntax_rules = sr;
     return v;
 }
 
@@ -77,9 +100,50 @@ Value* value_error_create(const char* message)
     return v;
 }
 
-void value_print(Value* v);
+bool value_is_true(const Value* v)
+{
+    if (v && v->type == VALUE_SYMBOL && strcmp(v->u.symbol, "#f") == 0) {
+        return false;
+    }
+    return true;
+}
 
-void print_list(Value* v)
+bool value_equal(const Value* a, const Value* b)
+{
+    if (!a || !b) {
+        return false;
+    }
+
+    if (a == b) {
+        return true;
+    }
+
+    if (a->type != b->type) {
+        return false;
+    }
+
+    switch (a->type) {
+    case VALUE_INT:
+        return a->u.integer == b->u.integer;
+
+    case VALUE_STRING:
+        return strcmp(a->u.string, b->u.string) == 0;
+
+    case VALUE_SYMBOL:
+        if (a->u.symbol == b->u.symbol) {
+            return true;
+        }
+        return strcmp(a->u.symbol, b->u.symbol) == 0;
+
+    case VALUE_PAIR:
+        return value_equal(a->u.pair.car, b->u.pair.car) && value_equal(a->u.pair.cdr, b->u.pair.cdr);
+
+    default:
+        return false;
+    }
+}
+
+static void print_list(const Value* v)
 {
     printf("(");
     int first = 1;
@@ -97,15 +161,7 @@ void print_list(Value* v)
     printf(")");
 }
 
-bool value_is_true(Value* v)
-{
-    if (v && v->type == VALUE_SYMBOL && strcmp(v->u.symbol, "#f") == 0) {
-        return false;
-    }
-    return true;
-}
-
-void value_print(Value* v)
+void value_print(const Value* v)
 {
     if (!v) {
         printf("<NULL>");

@@ -207,7 +207,7 @@
 
 (declare-test runtime-errors
   (assert-no-error? 1)
-            
+
   (assert-error? (define 1))
   (assert-error? (load))
   (assert-error? (load 1))
@@ -286,6 +286,152 @@
   (assert-error? (gensym "prefix" "extra"))
   (assert-error? (error 123))
   (assert-error? (error))
+)
+
+(declare-test syntax-rules-basic
+  (define-syntax id 
+    (syntax-rules () 
+      ((_ x) x)))
+  (assert-eq 5 (id 5))
+  (assert-eq 'sym (id 'sym))
+
+  (define-syntax swap-list 
+    (syntax-rules () 
+      ((_ a b) (list b a))))
+  (assert-equal? '(2 1) (swap-list 1 2))
+  
+  (define-syntax ignore-second
+    (syntax-rules ()
+      ((_ a b) a)))
+  (assert-eq 10 (ignore-second 10 20))
+)
+
+(declare-test syntax-rules-literals
+  (define-syntax what-is-it
+    (syntax-rules (literal-a literal-b)
+      ((_ literal-a) 'found-a)
+      ((_ literal-b) 'found-b)
+      ((_ other) 'found-other)))
+  
+  (assert-eq 'found-a (what-is-it literal-a))
+  (assert-eq 'found-b (what-is-it literal-b))
+  (assert-eq 'found-other (what-is-it literal-c))
+  (assert-eq 'found-other (what-is-it something-else))
+
+  (define-syntax my-cond-broken
+    (syntax-rules ()
+      ((_ else val) val)))
+  (assert-eq 5 (my-cond-broken 1 5)) ;; Matches '1' as 'else'
+  
+  (define-syntax checks-literal
+    (syntax-rules (hello)
+      ((_ hello) 'yes)
+      ((_ x) 'no)))
+  (assert-eq 'yes (checks-literal hello))
+  (assert-eq 'no (checks-literal hi))
+)
+
+(declare-test syntax-rules-ellipsis
+  (define-syntax list* 
+    (syntax-rules () 
+      ((_ x ...) (list x ...))))
+  
+  (assert-equal? '(1 2 3) (list* 1 2 3))
+  (assert-equal? '() (list*))
+  
+  (define-syntax required-plus-rest
+    (syntax-rules ()
+      ((_ first rest ...) (list first (list rest ...)))))
+      
+  (assert-equal? '(1 (2 3)) (required-plus-rest 1 2 3))
+  (assert-equal? '(1 ()) (required-plus-rest 1))
+)
+
+(declare-test syntax-rules-ellipsis-advanced
+  (define-syntax reverse-cons
+    (syntax-rules ()
+      ((_ head ... tail) (cons tail (list head ...)))))
+      
+  (assert-equal? '(4 1 2 3) (reverse-cons 1 2 3 4))
+
+  (define-syntax zip
+    (syntax-rules ()
+      ((_ (k ...) (v ...)) 
+       (list (list k v) ...))))
+       
+  (assert-equal? '((a 1) (b 2) (c 3)) (zip (a b c) (1 2 3)))
+  
+  (define-syntax deep-list
+    (syntax-rules ()
+      ((_ (x ...) ...)
+       (list (list x ...) ...))))
+  (assert-equal? '((1 2) (3 4)) (deep-list (1 2) (3 4)))
+)
+
+(declare-test syntax-rules-recursion
+  (define-syntax my-append
+    (syntax-rules ()
+      ((_) '())
+      ((_ l) l)
+      ((_ l1 l2 rest ...)
+       (append l1 (my-append l2 rest ...)))))
+       
+  (assert-equal? '(1 2 3 4 5 6) (my-append '(1 2) '(3 4) '(5 6)))
+  
+  (define-syntax my-let
+    (syntax-rules ()
+      ((_ ((x v) ...) body ...)
+       ((lambda (x ...) body ...) v ...))))
+       
+  (assert-eq 30 (my-let ((x 10) (y 20)) (+ x y)))
+)
+
+(declare-test syntax-rules-wildcard
+  (define-syntax check-wildcard
+    (syntax-rules ()
+      ((_ _ b) b)))
+      
+  (assert-eq 2 (check-wildcard 1 2))
+  (assert-eq 2 (check-wildcard 'anything 2))
+)
+
+(declare-test syntax-rules-hygiene
+  (define-syntax hygienic-swap
+    (syntax-rules ()
+      ((_ x y)
+       (let ((temp x))
+         (set! x y)
+         (set! y temp)))))
+         
+  (let ((temp 5)
+        (other 6))
+    (hygienic-swap temp other)
+    (assert-eq 6 temp)
+    (assert-eq 5 other))
+
+  (define-syntax use-list
+    (syntax-rules ()
+      ((_ x) (list x))))
+      
+  (let ((list +))
+    (assert-equal? '(1) (use-list 1)))
+)
+
+(declare-test syntax-rules-errors
+  
+  (define-syntax only-one
+    (syntax-rules ()
+      ((_ x) x)))
+      
+  (assert-error? (only-one))
+  (assert-error? (only-one 1 2))
+  
+  (define-syntax must-say-yes
+    (syntax-rules (yes)
+      ((_ yes) 'ok)))
+      
+  (assert-eq 'ok (must-say-yes yes))
+  (assert-error? (must-say-yes no))
 )
 
 (run-all-tests)
