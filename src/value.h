@@ -10,11 +10,15 @@ typedef enum {
     VALUE_PRIMITIVE,
     VALUE_CLOSURE,
     VALUE_MACRO,
+    VALUE_SYNTAX_RULES,
     VALUE_ERROR
 } ValueType;
 
 typedef struct Value Value;
 typedef Value* (*PrimFn)(Value* args);
+
+typedef struct SyntaxRule SyntaxRule;
+typedef struct SyntaxRules SyntaxRules;
 
 struct Value {
     ValueType type;
@@ -45,6 +49,8 @@ struct Value {
             Value *params, *body, *env;
         } macro;
 
+        SyntaxRules* syntax_rules;
+
         struct
         {
             char* message;
@@ -63,7 +69,9 @@ Value* value_prim_create(const char* name, PrimFn f);
 Value* value_closure_create(Value* params, Value* body, Value* env);
 Value* value_macro_create(Value* params, Value* body, Value* env);
 Value* value_error_create(const char* message);
+Value* value_syntax_rules_create(SyntaxRules* sr);
 
 bool value_is_true(Value* v);
+bool value_equal(Value* a, Value* b);
 
-void value_print(Value* v);
+void value_print(const Value* v);

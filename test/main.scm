@@ -207,7 +207,7 @@
 
 (declare-test runtime-errors
   (assert-no-error? 1)
-            
+
   (assert-error? (define 1))
   (assert-error? (load))
   (assert-error? (load 1))

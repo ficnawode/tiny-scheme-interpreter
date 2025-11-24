@@ -69,6 +69,13 @@ Value* value_macro_create(Value* params, Value* body, Value* env)
     return v;
 }
 
+Value* value_syntax_rules_create(SyntaxRules* sr)
+{
+    Value* v = gc_alloc(VALUE_SYNTAX_RULES);
+    v->u.syntax_rules = sr;
+    return v;
+}
+
 Value* value_error_create(const char* message)
 {
     Value* v = gc_alloc(VALUE_ERROR);
@@ -77,9 +84,50 @@ Value* value_error_create(const char* message)
     return v;
 }
 
-void value_print(Value* v);
+bool value_is_true(Value* v)
+{
+    if (v && v->type == VALUE_SYMBOL && strcmp(v->u.symbol, "#f") == 0) {
+        return false;
+    }
+    return true;
+}
 
-void print_list(Value* v)
+bool value_equal(Value* a, Value* b)
+{
+    if (!a || !b) {
+        return false;
+    }
+
+    if (a == b) {
+        return true;
+    }
+
+    if (a->type != b->type) {
+        return false;
+    }
+
+    switch (a->type) {
+    case VALUE_INT:
+        return a->u.integer == b->u.integer;
+
+    case VALUE_STRING:
+        return strcmp(a->u.string, b->u.string) == 0;
+
+    case VALUE_SYMBOL:
+        if (a->u.symbol == b->u.symbol) {
+            return true;
+        }
+        return strcmp(a->u.symbol, b->u.symbol) == 0;
+
+    case VALUE_PAIR:
+        return value_equal(a->u.pair.car, b->u.pair.car) && value_equal(a->u.pair.cdr, b->u.pair.cdr);
+
+    default:
+        return false;
+    }
+}
+
+static void print_list(const Value* v)
 {
     printf("(");
     int first = 1;
@@ -97,15 +145,7 @@ void print_list(Value* v)
     printf(")");
 }
 
-bool value_is_true(Value* v)
-{
-    if (v && v->type == VALUE_SYMBOL && strcmp(v->u.symbol, "#f") == 0) {
-        return false;
-    }
-    return true;
-}
-
-void value_print(Value* v)
+void value_print(const Value* v)
 {
     if (!v) {
         printf("<NULL>");

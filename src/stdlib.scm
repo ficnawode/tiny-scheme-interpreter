@@ -5,13 +5,10 @@
 (define (caar pair) 
     (car (car pair))
   )
+
 (define (cddr pair) 
     (cdr (cdr pair))
   )
-
-(define (append a b)
-  (if (null? a) b
-      (cons (car a) (append (cdr a) b))))
 
 (define map
   (lambda (f lst)
@@ -22,58 +19,6 @@
 
 (define (list . xs) xs)
 
-
-(define-macro (let bindings . body)
-  `((lambda ,(map (lambda (b) (car b)) bindings)
-      ,@body)
-    ,@(map (lambda (b) (car (cdr b))) bindings)))
-
-
-(define-macro (let* bindings . body)
-  (if (null? bindings)
-      `(let () ,@body)
-      `(let (,(car bindings))
-         (let* ,(cdr bindings) ,@body))))
-
-
-(define undefined 'undefined)
-
-(define-macro (letrec bindings . body)
-  (let ((vars (map car bindings)))
-    `(let ,(map (lambda (v) (list v undefined)) vars)
-       ,@(map (lambda (b) `(set! ,(car b) ,(cadr b))) bindings)
-       ,@body)))
-
-
-(define-macro (cond . clauses)
-  (if (null? clauses)
-      #f  ; Unspecified in R7RS
-      (let ((clause (car clauses))
-            (rest-clauses (cdr clauses)))
-        (if (not (list? clause))
-            (error "cond: invalid clause syntax")
-            (let ((test (car clause))
-                  (clause-rest (cdr clause)))
-              (if (eq? test 'else)
-                  (if (not (null? rest-clauses))
-                      (error "cond: else must be the last clause")
-                      (if (null? clause-rest)
-                          (error "cond: else clause requires expressions")
-                          `(begin ,@clause-rest)))
-                  (if (null? clause-rest)
-                      `(or ,test (cond ,@rest-clauses))
-                      (if (eq? (car clause-rest) '=>)
-                          (if (null? (cdr clause-rest))
-                              (error "cond: => requires a procedure")
-                              (if (not (null? (cddr clause-rest)))
-                                  (error "cond: too many expressions after =>")
-                                  `(let ((tmp ,test))
-                                     (if tmp
-                                         (,(cadr clause-rest) tmp)
-                                         (cond ,@rest-clauses)))))
-                          `(if ,test
-                               (begin ,@clause-rest)
-                               (cond ,@rest-clauses))))))))))
 (define (assoc key alist)
   (cond ((null? alist) #f)
   ((eq? key (caar alist)) (car alist))
@@ -115,26 +60,102 @@
           (equal? (cdr a) (cdr b))))
     (else #f)))
 
+(define undefined 'undefined)
 
-(define-macro (not expr)
-  `(if ,expr #f #t))
+(define-syntax let
+  (syntax-rules ()
+    ((let ((name val) ...) body1 body2 ...)
+     ((lambda (name ...) body1 body2 ...) val ...))
+    
+    ((let tag ((name val) ...) body1 body2 ...)
+     (letrec ((tag (lambda (name ...) body1 body2 ...)))
+       (tag val ...)))))
 
-(define-macro (and . clauses)
-  (if (null? clauses)
-      #t
-      (if (null? (cdr clauses))
-          (car clauses)
-          `(if ,(car clauses)
-               (and ,@(cdr clauses))
-               #f))))
+(define-syntax letrec
+  (syntax-rules ()
+    ((letrec ((var init) ...) body1 body2 ...)
+     (let ((var undefined) ...)
+       (set! var init)
+       ...
+       (let () body1 body2 ...)))))
 
-(define-macro (or . clauses)
-  (if (null? clauses)
-      #f
-      (if (null? (cdr clauses))
-          (car clauses)
-          `(let ((result ,(car clauses)))
-             (if result
-                 result
-                 (or ,@(cdr clauses)))))))
+(define-syntax let*
+  (syntax-rules ()
+    ((let* () body1 body2 ...)
+     (let () body1 body2 ...))
+    ((let* ((name1 val1) (name2 val2) ...) body1 body2 ...)
+     (let ((name1 val1))
+       (let* ((name2 val2) ...)
+         body1 body2 ...)))))
+
+(define-syntax not
+  (syntax-rules ()
+    ((_ expression)
+     (if expression #f #t))))
+
+(define-syntax and
+  (syntax-rules ()
+    ((and) #t)
+    ((and test) test)
+    ((and test1 test2 ...)
+     (if test1 (and test2 ...) #f))))
+
+(define-syntax or
+  (syntax-rules ()
+    ((or) #f)
+    ((or test) test)
+    ((or test1 test2 ...)
+     (let ((x test1))
+       (if x x (or test2 ...))))))
+
+(define-syntax cond
+  (syntax-rules (else =>)
+    ((cond) #f)
+
+    ((cond (else result1 result2 ...) clause1 . rest-clauses)
+     (error "cond: else must be the last clause"))
+
+    ((cond (else))
+     (error "cond: else clause requires expressions"))
+
+    ((cond (else result1 result2 ...))
+     (begin result1 result2 ...))
+
+    ((cond (test =>))
+     (error "cond: => requires a procedure"))
+
+    ((cond (test =>) clause1 . rest-clauses)
+     (error "cond: => requires a procedure"))
+
+    ((cond (test => result extra . extras) . rest-clauses)
+     (error "cond: too many expressions after =>"))
+
+    ((cond (test => result))
+     (let ((temp test))
+       (if temp (result temp) #f)))
+
+    ((cond (test => result) clause1 . rest-clauses)
+     (let ((temp test))
+       (if temp
+           (result temp)
+           (cond clause1 . rest-clauses))))
+
+    ((cond (test))
+     (let ((temp test))
+       (if temp temp #f)))
+
+    ((cond (test) clause1 . rest-clauses)
+     (let ((temp test))
+       (if temp
+           temp
+           (cond clause1 . rest-clauses))))
+
+    ((cond (test result1 result2 ...))
+     (if test (begin result1 result2 ...) #f))
+
+    ((cond (test result1 result2 ...) clause1 . rest-clauses)
+     (if test
+         (begin result1 result2 ...)
+         (cond clause1 . rest-clauses)))))
+
 

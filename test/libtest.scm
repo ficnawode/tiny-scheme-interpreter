@@ -1,4 +1,3 @@
-;; requires append and list (or implement append as above)
 (define *test-manager*
   (let ((tests '()))
     (lambda (message . args)
@@ -11,38 +10,51 @@
 (define (register-test! name proc)
   (*test-manager* 'add-test (cons name proc)))
 
-(define-macro (declare-test name . body)
-  `(register-test!
-    ',name
-    (lambda ()
-      (let ((all-passed?
-              (and ,@body)))  
-        all-passed?))))
+(define-syntax declare-test
+  (syntax-rules ()
+    ((_ name body ...)
+     (register-test! 
+      'name 
+      (lambda ()
+        (let ((all-passed? (and body ...)))
+          all-passed?))))))
 
+(define-syntax assert
+  (syntax-rules ()
+    ((_ expr)
+     (let ((result expr))
+       (if result
+           #t
+           (begin
+             (display "  -> Assertion Failed: ") 
+             (display 'expr) 
+             (newline)
+             #f))))))
 
+(define-syntax assert-eq
+  (syntax-rules ()
+    ((_ e1 e2)
+     (assert (= e1 e2)))))
 
-(define-macro (assert expr)
-  `(let ((result ,expr))
-     (if result
-         #t
-         (begin
-           (display "  -> Assertion Failed: ") (display ',expr) (newline)
-           #f))))
+(define-syntax assert-eq?
+  (syntax-rules ()
+    ((_ e1 e2)
+     (assert (eq? e1 e2)))))
 
-(define-macro (assert-eq expr1 expr2)
-  `(assert (= ,expr1 ,expr2)))
+(define-syntax assert-equal?
+  (syntax-rules ()
+    ((_ e1 e2)
+     (assert (equal? e1 e2)))))
 
-(define-macro (assert-eq? expr1 expr2)
-  `(assert (eq? ,expr1 ,expr2)))
+(define-syntax assert-error?
+  (syntax-rules ()
+    ((_ expr)
+     (assert (error-object? expr)))))
 
-(define-macro (assert-equal? expr1 expr2)
-  `(assert (equal? ,expr1 ,expr2)))
-
-(define-macro (assert-error? expr1 )
-  `(assert (error-object? ,expr1)))
-
-(define-macro (assert-no-error? expr1 )
-  `(assert (not (error-object? ,expr1))))
+(define-syntax assert-no-error?
+  (syntax-rules ()
+    ((_ expr)
+     (assert (not (error-object? expr))))))
 
 (define (run-all-tests)
   (let ((tests (*test-manager* 'get-tests)))
