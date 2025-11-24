@@ -289,24 +289,33 @@ typedef struct {
     const char* name;
     SpecialFormFn fn;
 } SpecialFormDef;
+static SpecialFormDef special_forms[] = {
+    { "quote", handle_quote },
+    { "quasiquote", handle_quasiquote },
+    { "if", handle_if },
+    { "define", handle_define },
+    { "lambda", handle_lambda },
+    { "load", handle_load_file },
+    { "define-macro", handle_define_macro },
+    { "define-syntax", handle_define_syntax },
+    { "begin", handle_begin },
+    { "set!", handle_set_bang },
+    { "apply", handle_apply },
+};
+static const size_t special_forms_count = sizeof(special_forms) / sizeof(*special_forms);
+
+bool is_evaluator_special_form(const char* name)
+{
+    for (size_t i = 0; i < special_forms_count; i++) {
+        if (strcmp(name, special_forms[i].name) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
 
 static EvalResult try_handle_special_form(Value* expr, Value* env)
 {
-    static SpecialFormDef special_forms[] = {
-        { "quote", handle_quote },
-        { "quasiquote", handle_quasiquote },
-        { "if", handle_if },
-        { "define", handle_define },
-        { "lambda", handle_lambda },
-        { "load", handle_load_file },
-        { "define-macro", handle_define_macro },
-        { "define-syntax", handle_define_syntax },
-        { "begin", handle_begin },
-        { "set!", handle_set_bang },
-        { "apply", handle_apply },
-    };
-    static const size_t special_forms_count = sizeof(special_forms) / sizeof(*special_forms);
-
     Value* op = CAR(expr);
     if (!op || op->type != VALUE_SYMBOL)
         return result_no_match();

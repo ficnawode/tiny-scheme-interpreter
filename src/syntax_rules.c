@@ -20,8 +20,12 @@ typedef struct {
     Value* tail;
 } ListBuilder;
 
+typedef struct {
+    Value* list;
+} RenameMap;
+
 static bool pattern_match(Value* pattern, Value* input, Value* literals, CaptureMap* captures);
-static Value* transcribe(Value* template, CaptureMap* captures);
+static Value* transcribe(Value* template, CaptureMap* captures, Value* def_env, RenameMap* renames);
 
 static bool is_ellipsis_symbol(Value* sym)
 {
@@ -39,6 +43,52 @@ static bool is_literal_symbol(Value* sym, Value* literal_list)
         if (CAR(cursor) == sym)
             return true;
     }
+    return false;
+}
+
+static bool is_auxiliary_syntax(Value* sym)
+{
+    const char* s = sym->u.symbol;
+    static char* lookup[] = {
+        "...",
+        "else",
+        "syntax-rules",
+        "=>",
+        "unquote",
+        "unquote-splicing",
+        "begin",
+        "let",
+        "let*",
+        "letrec",
+        "cond",
+        "case",
+        "and",
+        "or",
+        "do",
+        "unquote",
+        "unquote-splicing",
+    };
+    static const size_t lookup_size
+        = sizeof(lookup) / sizeof(lookup[0]);
+    for (size_t i = 0; i < lookup_size; i++) {
+        if (strcmp(s, lookup[i]) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool is_reserved_keyword(Value* sym)
+{
+    if (sym->type != VALUE_SYMBOL)
+        return false;
+
+    if (is_evaluator_special_form(sym->u.symbol))
+        return true;
+
+    if (is_auxiliary_syntax(sym))
+        return true;
+
     return false;
 }
 
@@ -78,7 +128,9 @@ static void captures_init(CaptureMap* captures)
 static void captures_add(CaptureMap* captures, Value* var, Value* value)
 {
     Value* binding = CONS(var, value);
+    GC_PUSH(binding);
     captures->binding_list = CONS(binding, captures->binding_list);
+    GC_POP();
 }
 
 static Value* captures_lookup(CaptureMap* captures, Value* var)
@@ -123,6 +175,37 @@ static void captures_reverse_groups(CaptureMap* captures, Value* vars_to_reverse
     }
 }
 
+static void renames_init(RenameMap* renames)
+{
+    renames->list = NIL;
+}
+
+static Value* renames_lookup(RenameMap* renames, Value* sym)
+{
+    for (Value* p = renames->list; p != NIL; p = CDR(p)) {
+        Value* pair = CAR(p);
+        if (CAR(pair) == sym)
+            return CDR(pair);
+    }
+    return NULL;
+}
+
+static void renames_add(RenameMap* renames, Value* old_sym, Value* new_sym)
+{
+    Value* pair = CONS(old_sym, new_sym);
+    GC_PUSH(pair);
+    renames->list = CONS(pair, renames->list);
+    GC_POP();
+}
+
+static Value* generate_unique_symbol(Value* base_sym)
+{
+    static unsigned long counter = 0;
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s#%lu", base_sym->u.symbol, ++counter);
+    return intern(buffer);
+}
+
 static Value* collect_pattern_variables(Value* pattern, Value* literals)
 {
     if (pattern->type == VALUE_SYMBOL) {
@@ -139,7 +222,9 @@ static Value* collect_pattern_variables(Value* pattern, Value* literals)
         Value* head_vars = collect_pattern_variables(CAR(pattern), literals);
         GC_PUSH(head_vars);
         Value* tail_vars = collect_pattern_variables(CDR(pattern), literals);
+        GC_PUSH(tail_vars);
         Value* all_vars = list_append(head_vars, tail_vars);
+        GC_POP();
         GC_POP();
         return all_vars;
     }
@@ -237,11 +322,9 @@ static bool pattern_match(
     CaptureMap* captures)
 {
     if (pattern->type == VALUE_SYMBOL) {
-
         if (is_literal_symbol(pattern, literals)) {
             return input->type == VALUE_SYMBOL && pattern == input;
         }
-
         if (is_wildcard_symbol(pattern))
             return true;
 
@@ -258,31 +341,26 @@ static bool pattern_match(
 
 static int calculate_repetition_depth(Value* vars, CaptureMap* captures)
 {
-    int depth = 0;
-    bool depth_initialized = false;
-
+    int depth = -1;
     for (Value* v = vars; v != NIL; v = CDR(v)) {
         Value* bound_list = captures_lookup(captures, CAR(v));
-        if (!bound_list)
-            continue;
-
-        int len = list_length(bound_list);
-
-        if (!depth_initialized) {
-            depth = len;
-            depth_initialized = true;
-        } else if (depth != len) {
-            return -1;
+        if (bound_list) {
+            int len = list_length(bound_list);
+            if (depth == -1)
+                depth = len;
+            else if (depth != len)
+                return -1;
         }
     }
-
-    return depth;
+    return (depth == -1) ? 0 : depth;
 }
 
 static void transcribe_ellipsis(
     Value* repeated_template,
     CaptureMap* captures,
-    ListBuilder* builder)
+    ListBuilder* builder,
+    Value* def_env,
+    RenameMap* renames)
 {
     Value* vars = collect_pattern_variables(repeated_template, NIL);
     GC_PUSH(vars);
@@ -300,17 +378,14 @@ static void transcribe_ellipsis(
 
         for (Value* v = vars; v != NIL; v = CDR(v)) {
             Value* full_list = captures_lookup(captures, CAR(v));
-            if (!full_list) {
-                continue;
+            if (full_list) {
+                Value* item = list_ref(full_list, i);
+                if (item)
+                    captures_add(&local_captures, CAR(v), item);
             }
-            Value* item = list_ref(full_list, i);
-            if (!item) {
-                continue;
-            }
-            captures_add(&local_captures, CAR(v), item);
         }
 
-        Value* expanded = transcribe(repeated_template, &local_captures);
+        Value* expanded = transcribe(repeated_template, &local_captures, def_env, renames);
         GC_PUSH(expanded);
         list_builder_add(builder, expanded);
         GC_POP();
@@ -320,7 +395,7 @@ static void transcribe_ellipsis(
     GC_POP();
 }
 
-static Value* transcribe_list(Value* template_list, CaptureMap* captures)
+static Value* transcribe_list(Value* template_list, CaptureMap* captures, Value* def_env, RenameMap* renames)
 {
     ListBuilder builder;
     list_builder_init(&builder);
@@ -328,12 +403,11 @@ static Value* transcribe_list(Value* template_list, CaptureMap* captures)
 
     Value* cursor = template_list;
     while (cursor != NIL && cursor->type == VALUE_PAIR) {
-
         if (CDR(cursor) != NIL && CDR(cursor)->type == VALUE_PAIR && is_ellipsis_symbol(CAR(CDR(cursor)))) {
-            transcribe_ellipsis(CAR(cursor), captures, &builder);
+            transcribe_ellipsis(CAR(cursor), captures, &builder, def_env, renames);
             cursor = CDR(CDR(cursor));
         } else {
-            Value* val = transcribe(CAR(cursor), captures);
+            Value* val = transcribe(CAR(cursor), captures, def_env, renames);
             GC_PUSH(val);
             list_builder_add(&builder, val);
             GC_POP();
@@ -342,7 +416,7 @@ static Value* transcribe_list(Value* template_list, CaptureMap* captures)
     }
 
     if (cursor != NIL) {
-        Value* dotted_tail = transcribe(cursor, captures);
+        Value* dotted_tail = transcribe(cursor, captures, def_env, renames);
         list_builder_set_dotted_tail(&builder, dotted_tail);
     }
 
@@ -350,15 +424,33 @@ static Value* transcribe_list(Value* template_list, CaptureMap* captures)
     return builder.head;
 }
 
-static Value* transcribe(Value* template, CaptureMap* captures)
+static Value* transcribe(Value* template, CaptureMap* captures, Value* def_env, RenameMap* renames)
 {
     if (template->type == VALUE_SYMBOL) {
         Value* val = captures_lookup(captures, template);
-        return val ? val : template;
-    }
+        if (val) {
+            return val;
+        }
 
-    if (template->type == VALUE_PAIR) {
-        return transcribe_list(template, captures);
+        if (is_reserved_keyword(template)) {
+            return template;
+        }
+
+        Value* renamed = renames_lookup(renames, template);
+        if (renamed) {
+            return renamed;
+        }
+
+        Value* def_val = env_lookup(def_env, template);
+        if (def_val) {
+            return def_val;
+        }
+
+        Value* new_sym = generate_unique_symbol(template);
+        renames_add(renames, template, new_sym);
+        return new_sym;
+    } else if (template->type == VALUE_PAIR) {
+        return transcribe_list(template, captures, def_env, renames);
     }
 
     return template;
@@ -378,7 +470,14 @@ Value* expand_syntax_rules(Value* macro_value, Value* input_expr)
                 input_args,
                 rules->literals,
                 &captures)) {
-            Value* result = transcribe(rules->rules[i].template, &captures);
+
+            RenameMap renames;
+            renames_init(&renames);
+            GC_PUSH(renames.list);
+
+            Value* result = transcribe(rules->rules[i].template, &captures, rules->defining_env, &renames);
+
+            GC_POP();
             GC_POP();
             return result;
         }
@@ -389,15 +488,13 @@ Value* expand_syntax_rules(Value* macro_value, Value* input_expr)
     return runtime_error("syntax error: no matching pattern for macro");
 }
 
-static SyntaxRules* syntax_rules_alloc(Value* literals, Value* env, unsigned int count)
+static SyntaxRules* syntax_rules_create(Value* literals, Value* env, unsigned int count)
 {
     SyntaxRules* rules = xmalloc(sizeof(SyntaxRules));
-
     rules->literals = literals;
     rules->defining_env = env;
     rules->rule_count = count;
     rules->rules = xmalloc(count * sizeof(SyntaxRule));
-
     return rules;
 }
 
@@ -417,7 +514,7 @@ Value* parse_define_syntax(Value* expr, Value* env)
     Value* rules_list = CDDR(rules_form);
     size_t rule_count = list_length(rules_list);
 
-    SyntaxRules* rules = syntax_rules_alloc(literals, env, rule_count);
+    SyntaxRules* rules = syntax_rules_create(literals, env, rule_count);
     Value* rules_obj = value_syntax_rules_create(rules);
     GC_PUSH(rules_obj);
 
