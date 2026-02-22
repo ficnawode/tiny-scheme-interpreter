@@ -433,6 +433,7 @@
   (assert-eq 'ok (must-say-yes yes))
   (assert-error? (must-say-yes no))
 )
+
 (declare-test number-tower-integers
   ;; Basic arithmetic
   (assert-eq 5 (+ 2 3))

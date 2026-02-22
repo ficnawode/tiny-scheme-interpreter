@@ -19,8 +19,6 @@
         (let ((all-passed? (and body ...)))
           all-passed?))))))
 
-;;; UPDATED ASSERT MACROS ;;;
-
 (define-syntax assert
   (syntax-rules ()
     ((_ expr)
