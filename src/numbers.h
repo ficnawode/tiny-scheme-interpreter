@@ -76,6 +76,7 @@ SchemeNum schemenum_modulo(SchemeNum a, SchemeNum b);
 bool schemenum_is_exact(SchemeNum a);
 SchemeNum schemenum_to_exact(SchemeNum a);
 SchemeNum schemenum_to_inexact(SchemeNum a);
+bool schemenum_is_real(SchemeNum a);
 
 bool schemenum_is_zero(SchemeNum a);
 bool schemenum_is_integer(SchemeNum a);

@@ -630,5 +630,112 @@
   (assert-eq 12 (lcm 4 6))
   (assert-eq 0 (lcm 0 5))
 )
+(declare-test number-tower-complex
+  ;; Basic Creation and Parsing
+  (assert-equal? 5i (make-rectangular 0 5))
+  (assert-equal? 3+4i (make-rectangular 3 4))
+  (assert-equal? -2-i (make-rectangular -2 -1))
+  
+  ;; Real/Imag Part Extraction
+  (assert-eq 3 (real-part 3+4i))
+  (assert-eq 4 (imag-part 3+4i))
+  (assert-eq 0 (imag-part 5))
+  
+  ;; Canonicalization (3+0i should be the integer 3)
+  (assert (exact? 3+0i))
+  (assert (integer? 3+0i))
+  (assert (not (complex? "not-a-num")))
+  
+  ;; Complex Arithmetic
+  ;; (1+2i) + (3+4i) = 4+6i
+  (assert-equal? 4+6i (+ 1+2i 3+4i))
+  
+  ;; (1+i) * (1+i) = 1 + i + i + i^2 = 1 + 2i - 1 = 0+2i = 2i
+  (assert-equal? 2i (* 1+i 1+i))
+  
+  ;; (1+i) * (1-i) = 1^2 - i^2 = 1 - (-1) = 2
+  (assert-eq 2 (* 1+i 1-i))
+  
+  ;; Complex Division
+  ;; 1 / i = -i
+  (assert-equal? -i (/ 1 0+1i))
+  
+  ;; (10+5i) / 5 = 2+i
+  (assert-equal? 2+i (/ 10+5i 5))
+  
+  ;; Predicates
+  (assert (complex? 3+4i))
+  (assert (complex? 5)) ; R5RS: Reals are complex
+  (assert (real? 5))
+  (assert (not (real? 3+4i)))
+  (assert (real? 3+0i))
+)
+
+(declare-test number-tower-complex-exactness
+  ;; Exact + Inexact = Inexact
+  (assert (inexact? (+ 1+1i 2.0)))
+  (assert (inexact? (real-part (+ 1+1i 2.0))))
+  
+  ;; make-rectangular preserves exactness
+  (assert (exact? (make-rectangular 1 2)))
+  (assert (inexact? (make-rectangular 1.0 2)))
+)
+
+(declare-test cross-type-equality
+  ;; Basic Equality
+  (assert (= 1 1))
+  (assert (= 1 1.0))
+  (assert (not (= 1 0.5)))
+  
+  ;; Rational Equality
+  (assert (= 1/2 0.5))
+  (assert (= 1/2 2/4))
+  (assert (not (= 1/3 0.33)))
+  
+  ;; Complex Canonicalization
+  ;; 5+0i is real, 5+1i is not.
+  (assert (= 5 5+0i))
+  (assert (= 5.0 5+0i))
+  (assert (not (= 5 5+1i)))
+)
+
+(declare-test cross-type-comparison
+  ;; Integer comparisons
+  (assert (< 1 2))
+  (assert (not (< 1 1)))
+  (assert (not (< 2 1)))
+  
+  ;; Float/Mixed
+  (assert (< 1 1.5))
+  (assert (> 1.5 1))
+  (assert (= 1.0 1))
+
+  ;; Rationals (Precision)
+  ;; 1/3 is approx 0.3333333333333333
+  (assert (< 1/3 0.4))
+  (assert (> 0.4 1/3))
+  (assert (< 0.3 1/3))
+)
+
+(declare-test complex-real-predicates
+  ;; R5RS: Real numbers are complex numbers whose imaginary part is zero.
+  (assert (complex? 5))
+  (assert (real? 5))
+  (assert (real? 5+0i))
+  (assert (not (real? 5+1i)))
+  
+  ;; < and > return #f for non-real numbers
+  (assert (not (< 1+i 2+i)))
+  (assert (not (> 1+i 0+i)))
+  
+  ;; Real-part complex comparison
+  (assert (< 1+0i 2+0i))
+)
+
+(declare-test rational-precision
+  ;; (10 / 3) = 3.333...  vs (33 / 10) = 3.3
+  (assert (> 10/3 33/10))
+  (assert (not (= 10/3 33/10)))
+)
 
 (run-all-tests)

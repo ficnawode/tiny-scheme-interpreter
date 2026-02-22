@@ -73,7 +73,7 @@ void fail_test(const char *file, int line, const char *fmt, ...)
 		if (condition)                                               \
 		{                                                            \
 			fail_test(__FILE__, __LINE__,                            \
-					  "Expected false: " #condition);                 \
+					  "Expected false: " #condition);                \
 			return;                                                  \
 		}                                                            \
 	} while (0)

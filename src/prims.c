@@ -20,8 +20,8 @@ Value *prim_plus(Value *args)
 		if (v->type != VALUE_NUM)
 			return runtime_error("+: argument must be a number");
 		SchemeNum temp = schemenum_add(sum, v->u.num);
-        schemenum_free(sum);
-        sum = temp;
+		schemenum_free(sum);
+		sum = temp;
 	}
 	return value_num_create(sum);
 }
@@ -63,8 +63,8 @@ Value *prim_mul(Value *args)
 		if (v->type != VALUE_NUM)
 			return runtime_error("*: argument must be a number");
 		SchemeNum temp = schemenum_mul(prod, v->u.num);
-        schemenum_free(prod);
-        prod = temp;
+		schemenum_free(prod);
+		prod = temp;
 	}
 	return value_num_create(prod);
 }
@@ -78,7 +78,6 @@ Value *prim_div(Value *args)
 	Value *v1 = CAR(args);
 	if (v1->type != VALUE_NUM)
 		return runtime_error("/: argument must be a number");
-
 
 	SchemeNum result = v1->u.num;
 	Value *rest = CDR(args);
@@ -95,8 +94,8 @@ Value *prim_div(Value *args)
 			Value *vn = CAR(p);
 			if (vn->type != VALUE_NUM)
 				return runtime_error("/: argument must be a number");
-            if (schemenum_eq(vn->u.num, fixnum_create(0)))
-                return runtime_error("/: division by zero");
+			if (schemenum_eq(vn->u.num, fixnum_create(0)))
+				return runtime_error("/: division by zero");
 			result = schemenum_div(result, vn->u.num);
 		}
 	}
@@ -241,6 +240,56 @@ Value *prim_inexact_to_exact(Value *args)
 	if (!is_num(CAR(args)))
 		return runtime_error("inexact->exact expects number");
 	return value_num_create(schemenum_to_exact(CAR(args)->u.num));
+}
+
+Value *prim_complex_p(Value *args)
+{
+	if (list_length(args) != 1)
+		return runtime_error("complex? expects 1 arg");
+	return (CAR(args)->type == VALUE_NUM) ? intern("#t")
+										  : intern("#f");
+}
+
+Value *prim_real_p(Value *args)
+{
+	if (list_length(args) != 1)
+		return runtime_error("real? expects 1 arg");
+	if (CAR(args)->type != VALUE_NUM)
+		return intern("#f");
+	return schemenum_is_real(CAR(args)->u.num) ? intern("#t")
+											   : intern("#f");
+}
+
+Value *prim_real_part(Value *args)
+{
+	Value *v = CAR(args);
+	if (v->type != VALUE_NUM)
+		return runtime_error("real-part: not a number");
+	if (v->u.num.type == NUM_COMPLEX)
+		return value_num_create(v->u.num.value.complex_num->real);
+	return v;
+}
+
+Value *prim_imag_part(Value *args)
+{
+	Value *v = CAR(args);
+	if (v->type != VALUE_NUM)
+		return runtime_error("imag-part: not a number");
+	if (v->u.num.type == NUM_COMPLEX)
+		return value_num_create(v->u.num.value.complex_num->imag);
+	return value_num_create(fixnum_create(0));
+}
+
+Value *prim_make_rectangular(Value *args)
+{
+	if (list_length(args) != 2)
+		return runtime_error("make-rectangular: expects 2 args");
+	Value *re = CAR(args);
+	Value *im = CADR(args);
+	if (re->type != VALUE_NUM || im->type != VALUE_NUM)
+		return runtime_error(
+			"make-rectangular: args must be numbers");
+	return value_num_create(complex_create(re->u.num, im->u.num));
 }
 
 Value *prim_integer_p(Value *args)
@@ -489,6 +538,12 @@ PrimTable get_prims(void)
 		{"inexact?", prim_inexact_p},
 		{"exact->inexact", prim_exact_to_inexact},
 		{"inexact->exact", prim_inexact_to_exact},
+		{"complex?", prim_complex_p},
+		{"real?", prim_real_p},
+        {"integer?", prim_integer_p},
+		{"real-part", prim_real_part},
+		{"imag-part", prim_imag_part},
+		{"make-rectangular", prim_make_rectangular},
 		{"cons", prim_cons},
 		{"car", prim_car},
 		{"cdr", prim_cdr},
