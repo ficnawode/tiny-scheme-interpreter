@@ -601,22 +601,134 @@ static SchemeNum add_complex(SchemeNum a, SchemeNum b)
 
 static SchemeNum add_rational(SchemeNum a, SchemeNum b)
 {
-	SchemeNum n1 =
-		(a.type == NUM_RATIONAL) ? a.value.rational->numerator : a;
-	SchemeNum d1 = (a.type == NUM_RATIONAL)
-					   ? a.value.rational->denominator
-					   : fixnum_create(1);
-	SchemeNum n2 =
-		(b.type == NUM_RATIONAL) ? b.value.rational->numerator : b;
-	SchemeNum d2 = (b.type == NUM_RATIONAL)
-					   ? b.value.rational->denominator
-					   : fixnum_create(1);
+    SchemeNum n1 = (a.type == NUM_RATIONAL) ? a.value.rational->numerator : a;
+    SchemeNum d1 = (a.type == NUM_RATIONAL) ? a.value.rational->denominator : fixnum_create(1);
+    SchemeNum n2 = (b.type == NUM_RATIONAL) ? b.value.rational->numerator : b;
+    SchemeNum d2 = (b.type == NUM_RATIONAL) ? b.value.rational->denominator : fixnum_create(1);
 
-	// (n1*d2 + n2*d1) / (d1*d2)
-	SchemeNum top =
-		schemenum_add(schemenum_mul(n1, d2), schemenum_mul(n2, d1));
-	SchemeNum bot = schemenum_mul(d1, d2);
-	return rational_create(top, bot);
+    // t1 = n1 * d2
+    SchemeNum t1 = schemenum_mul(n1, d2);
+    // t2 = n2 * d1
+    SchemeNum t2 = schemenum_mul(n2, d1);
+    
+    // top = t1 + t2
+    SchemeNum top = schemenum_add(t1, t2);
+    
+    // Free intermediates!
+    schemenum_free(t1);
+    schemenum_free(t2);
+    
+    // bot = d1 * d2
+    SchemeNum bot = schemenum_mul(d1, d2);
+    
+    // rational_create takes ownership of 'top' and 'bot' contents
+    return rational_create(top, bot);
+}
+
+static SchemeNum sub_rational(SchemeNum a, SchemeNum b)
+{
+    SchemeNum n1 = (a.type == NUM_RATIONAL) ? a.value.rational->numerator : a;
+    SchemeNum d1 = (a.type == NUM_RATIONAL) ? a.value.rational->denominator : fixnum_create(1);
+    SchemeNum n2 = (b.type == NUM_RATIONAL) ? b.value.rational->numerator : b;
+    SchemeNum d2 = (b.type == NUM_RATIONAL) ? b.value.rational->denominator : fixnum_create(1);
+
+    SchemeNum t1 = schemenum_mul(n1, d2);
+    SchemeNum t2 = schemenum_mul(n2, d1);
+    
+    SchemeNum top = schemenum_sub(t1, t2);
+    
+    schemenum_free(t1);
+    schemenum_free(t2);
+    
+    SchemeNum bot = schemenum_mul(d1, d2);
+    
+    return rational_create(top, bot);
+}
+
+static SchemeNum mul_rational(SchemeNum a, SchemeNum b)
+{
+    SchemeNum n1 = (a.type == NUM_RATIONAL) ? a.value.rational->numerator : a;
+    SchemeNum d1 = (a.type == NUM_RATIONAL) ? a.value.rational->denominator : fixnum_create(1);
+    SchemeNum n2 = (b.type == NUM_RATIONAL) ? b.value.rational->numerator : b;
+    SchemeNum d2 = (b.type == NUM_RATIONAL) ? b.value.rational->denominator : fixnum_create(1);
+
+    SchemeNum top = schemenum_mul(n1, n2);
+    SchemeNum bot = schemenum_mul(d1, d2);
+    return rational_create(top, bot);
+}
+
+static SchemeNum div_rational(SchemeNum a, SchemeNum b)
+{
+    SchemeNum n1 = (a.type == NUM_RATIONAL) ? a.value.rational->numerator : a;
+    SchemeNum d1 = (a.type == NUM_RATIONAL) ? a.value.rational->denominator : fixnum_create(1);
+    SchemeNum n2 = (b.type == NUM_RATIONAL) ? b.value.rational->numerator : b;
+    SchemeNum d2 = (b.type == NUM_RATIONAL) ? b.value.rational->denominator : fixnum_create(1);
+
+    SchemeNum top = schemenum_mul(n1, d2);
+    SchemeNum bot = schemenum_mul(d1, n2);
+    return rational_create(top, bot);
+}
+
+static SchemeNum mul_complex(SchemeNum a, SchemeNum b)
+{
+    SchemeNum r1 = (a.type == NUM_COMPLEX) ? a.value.complex_num->real : a;
+    SchemeNum i1 = (a.type == NUM_COMPLEX) ? a.value.complex_num->imag : fixnum_create(0);
+    SchemeNum r2 = (b.type == NUM_COMPLEX) ? b.value.complex_num->real : b;
+    SchemeNum i2 = (b.type == NUM_COMPLEX) ? b.value.complex_num->imag : fixnum_create(0);
+
+    // (r1*r2 - i1*i2) + (r1*i2 + i1*r2)i
+
+    SchemeNum t1 = schemenum_mul(r1, r2);
+    SchemeNum t2 = schemenum_mul(i1, i2);
+    SchemeNum real_part = schemenum_sub(t1, t2);
+    schemenum_free(t1);
+    schemenum_free(t2);
+
+    SchemeNum t3 = schemenum_mul(r1, i2);
+    SchemeNum t4 = schemenum_mul(i1, r2);
+    SchemeNum imag_part = schemenum_add(t3, t4);
+    schemenum_free(t3);
+    schemenum_free(t4);
+
+    return complex_create(real_part, imag_part);
+}
+
+static SchemeNum div_complex(SchemeNum a, SchemeNum b)
+{
+    SchemeNum r1 = (a.type == NUM_COMPLEX) ? a.value.complex_num->real : a;
+    SchemeNum i1 = (a.type == NUM_COMPLEX) ? a.value.complex_num->imag : fixnum_create(0);
+    SchemeNum r2 = (b.type == NUM_COMPLEX) ? b.value.complex_num->real : b;
+    SchemeNum i2 = (b.type == NUM_COMPLEX) ? b.value.complex_num->imag : fixnum_create(0);
+
+    // Denominator = r2^2 + i2^2
+    SchemeNum t1 = schemenum_mul(r2, r2);
+    SchemeNum t2 = schemenum_mul(i2, i2);
+    SchemeNum denom = schemenum_add(t1, t2);
+    schemenum_free(t1);
+    schemenum_free(t2);
+
+    // Numerator Real = r1*r2 + i1*i2
+    SchemeNum t3 = schemenum_mul(r1, r2);
+    SchemeNum t4 = schemenum_mul(i1, i2);
+    SchemeNum top_r = schemenum_add(t3, t4);
+    schemenum_free(t3);
+    schemenum_free(t4);
+
+    // Numerator Imag = i1*r2 - r1*i2
+    SchemeNum t5 = schemenum_mul(i1, r2);
+    SchemeNum t6 = schemenum_mul(r1, i2);
+    SchemeNum top_i = schemenum_sub(t5, t6);
+    schemenum_free(t5);
+    schemenum_free(t6);
+
+    SchemeNum real_final = schemenum_div(top_r, denom);
+    SchemeNum imag_final = schemenum_div(top_i, denom);
+
+    schemenum_free(top_r);
+    schemenum_free(top_i);
+    schemenum_free(denom);
+
+    return complex_create(real_final, imag_final);
 }
 
 static SchemeNum add_integer(SchemeNum a, SchemeNum b)
@@ -663,25 +775,6 @@ static SchemeNum sub_complex(SchemeNum a, SchemeNum b)
 						  schemenum_sub(i1, i2));
 }
 
-static SchemeNum sub_rational(SchemeNum a, SchemeNum b)
-{
-	SchemeNum n1 =
-		(a.type == NUM_RATIONAL) ? a.value.rational->numerator : a;
-	SchemeNum d1 = (a.type == NUM_RATIONAL)
-					   ? a.value.rational->denominator
-					   : fixnum_create(1);
-	SchemeNum n2 =
-		(b.type == NUM_RATIONAL) ? b.value.rational->numerator : b;
-	SchemeNum d2 = (b.type == NUM_RATIONAL)
-					   ? b.value.rational->denominator
-					   : fixnum_create(1);
-
-	// (n1*d2 - n2*d1) / (d1*d2)
-	SchemeNum top =
-		schemenum_sub(schemenum_mul(n1, d2), schemenum_mul(n2, d1));
-	SchemeNum bot = schemenum_mul(d1, d2);
-	return rational_create(top, bot);
-}
 
 static SchemeNum sub_integer(SchemeNum a, SchemeNum b)
 {
@@ -712,40 +805,7 @@ SchemeNum schemenum_mul(SchemeNum a, SchemeNum b)
 	return mul_integer(a, b);
 }
 
-static SchemeNum mul_complex(SchemeNum a, SchemeNum b)
-{
-	SchemeNum ar =
-		(a.type == NUM_COMPLEX) ? a.value.complex_num->real : a;
-	SchemeNum ai = (a.type == NUM_COMPLEX) ? a.value.complex_num->imag
-										   : fixnum_create(0);
-	SchemeNum br =
-		(b.type == NUM_COMPLEX) ? b.value.complex_num->real : b;
-	SchemeNum bi = (b.type == NUM_COMPLEX) ? b.value.complex_num->imag
-										   : fixnum_create(0);
 
-	// (ar*br - ai*bi) + (ar*bi + ai*br)i
-	SchemeNum re =
-		schemenum_sub(schemenum_mul(ar, br), schemenum_mul(ai, bi));
-	SchemeNum im =
-		schemenum_add(schemenum_mul(ar, bi), schemenum_mul(ai, br));
-	return complex_create(re, im);
-}
-
-static SchemeNum mul_rational(SchemeNum a, SchemeNum b)
-{
-	SchemeNum n1 =
-		(a.type == NUM_RATIONAL) ? a.value.rational->numerator : a;
-	SchemeNum d1 = (a.type == NUM_RATIONAL)
-					   ? a.value.rational->denominator
-					   : fixnum_create(1);
-	SchemeNum n2 =
-		(b.type == NUM_RATIONAL) ? b.value.rational->numerator : b;
-	SchemeNum d2 = (b.type == NUM_RATIONAL)
-					   ? b.value.rational->denominator
-					   : fixnum_create(1);
-	return rational_create(schemenum_mul(n1, n2),
-						   schemenum_mul(d1, d2));
-}
 
 static SchemeNum mul_integer(SchemeNum a, SchemeNum b)
 {
@@ -783,48 +843,6 @@ SchemeNum schemenum_div(SchemeNum a, SchemeNum b)
 		return div_rational(a, b);
 
 	return div_integer(a, b);
-}
-
-static SchemeNum div_complex(SchemeNum a, SchemeNum b)
-{
-	// (a+bi)/(c+di) = ((ac+bd) + (bc-ad)i) / (c^2+d^2)
-	SchemeNum ar =
-		(a.type == NUM_COMPLEX) ? a.value.complex_num->real : a;
-	SchemeNum ai = (a.type == NUM_COMPLEX) ? a.value.complex_num->imag
-										   : fixnum_create(0);
-	SchemeNum br =
-		(b.type == NUM_COMPLEX) ? b.value.complex_num->real : b;
-	SchemeNum bi = (b.type == NUM_COMPLEX) ? b.value.complex_num->imag
-										   : fixnum_create(0);
-
-	SchemeNum denom =
-		schemenum_add(schemenum_mul(br, br), schemenum_mul(bi, bi));
-
-	SchemeNum r_top =
-		schemenum_add(schemenum_mul(ar, br), schemenum_mul(ai, bi));
-	SchemeNum i_top =
-		schemenum_sub(schemenum_mul(ai, br), schemenum_mul(ar, bi));
-
-	return complex_create(schemenum_div(r_top, denom),
-						  schemenum_div(i_top, denom));
-}
-
-static SchemeNum div_rational(SchemeNum a, SchemeNum b)
-{
-	// (n1/d1) / (n2/d2) = (n1*d2) / (d1*n2)
-	SchemeNum n1 =
-		(a.type == NUM_RATIONAL) ? a.value.rational->numerator : a;
-	SchemeNum d1 = (a.type == NUM_RATIONAL)
-					   ? a.value.rational->denominator
-					   : fixnum_create(1);
-	SchemeNum n2 =
-		(b.type == NUM_RATIONAL) ? b.value.rational->numerator : b;
-	SchemeNum d2 = (b.type == NUM_RATIONAL)
-					   ? b.value.rational->denominator
-					   : fixnum_create(1);
-
-	return rational_create(schemenum_mul(n1, d2),
-						   schemenum_mul(d1, n2));
 }
 
 bool schemenum_eq(SchemeNum a, SchemeNum b)
@@ -981,37 +999,32 @@ SchemeNum schemenum_to_inexact(SchemeNum a) {
     return floatnum_create(to_double(a));
 }
 
-void schemenum_free(SchemeNum num)
-{
-	switch (num.type)
-	{
-	case NUM_FIXNUM:
-	case NUM_FLOAT:
-		break;
-	case NUM_BIGNUM:
-		if (num.value.bignum)
-		{
-			free(num.value.bignum->limbs);
-			free(num.value.bignum);
-		}
-		break;
-	case NUM_RATIONAL:
-		if (num.value.rational)
-		{
-			schemenum_free(num.value.rational->numerator);
-			schemenum_free(num.value.rational->denominator);
-			free(num.value.rational);
-		}
-		break;
-	case NUM_COMPLEX:
-		if (num.value.complex_num)
-		{
-			schemenum_free(num.value.complex_num->real);
-			schemenum_free(num.value.complex_num->imag);
-			free(num.value.complex_num);
-		}
-		break;
-	}
+void schemenum_free(SchemeNum num) {
+    switch (num.type) {
+    case NUM_FIXNUM:
+    case NUM_FLOAT:
+        break;
+    case NUM_BIGNUM:
+        if (num.value.bignum) {
+            free(num.value.bignum->limbs);
+            free(num.value.bignum);
+        }
+        break;
+    case NUM_RATIONAL:
+        if (num.value.rational) {
+            schemenum_free(num.value.rational->numerator);
+            schemenum_free(num.value.rational->denominator);
+            free(num.value.rational);
+        }
+        break;
+    case NUM_COMPLEX:
+        if (num.value.complex_num) {
+            schemenum_free(num.value.complex_num->real);
+            schemenum_free(num.value.complex_num->imag);
+            free(num.value.complex_num);
+        }
+        break;
+    }
 }
 
 static bool bn_is_zero(BigNum *bn)

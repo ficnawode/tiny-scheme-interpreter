@@ -19,7 +19,9 @@ Value *prim_plus(Value *args)
 		Value *v = CAR(p);
 		if (v->type != VALUE_NUM)
 			return runtime_error("+: argument must be a number");
-		sum = schemenum_add(sum, v->u.num);
+		SchemeNum temp = schemenum_add(sum, v->u.num);
+        schemenum_free(sum);
+        sum = temp;
 	}
 	return value_num_create(sum);
 }
@@ -60,7 +62,9 @@ Value *prim_mul(Value *args)
 		Value *v = CAR(p);
 		if (v->type != VALUE_NUM)
 			return runtime_error("*: argument must be a number");
-		prod = schemenum_mul(prod, v->u.num);
+		SchemeNum temp = schemenum_mul(prod, v->u.num);
+        schemenum_free(prod);
+        prod = temp;
 	}
 	return value_num_create(prod);
 }
