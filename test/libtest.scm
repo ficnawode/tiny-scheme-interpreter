@@ -19,17 +19,28 @@
         (let ((all-passed? (and body ...)))
           all-passed?))))))
 
+;;; UPDATED ASSERT MACROS ;;;
+
 (define-syntax assert
   (syntax-rules ()
     ((_ expr)
      (let ((result expr))
-       (if result
-           #t
-           (begin
-             (display "  -> Assertion Failed: ") 
-             (display 'expr) 
-             (newline)
-             #f))))))
+       (cond 
+         ((error-object? result)
+          (begin
+            (display "  -> Assertion Error: ")
+            (display 'expr)
+            (display " returned error: ")
+            (display result)
+            (newline)
+            #f))
+         (result #t)
+         (else
+          (begin
+            (display "  -> Assertion Failed: ") 
+            (display 'expr) 
+            (newline)
+            #f)))))))
 
 (define-syntax assert-eq
   (syntax-rules ()
@@ -46,15 +57,31 @@
     ((_ e1 e2)
      (assert (equal? e1 e2)))))
 
+;;; ERROR ASSERTIONS REMAIN THE SAME ;;;
+
 (define-syntax assert-error?
   (syntax-rules ()
     ((_ expr)
-     (assert (error-object? expr)))))
+     (let ((result expr))
+       (if (error-object? result)
+           #t
+           (begin
+             (display "  -> Expected Error but got success: ")
+             (display 'expr)
+             (newline)
+             #f))))))
 
 (define-syntax assert-no-error?
   (syntax-rules ()
     ((_ expr)
-     (assert (not (error-object? expr))))))
+     (let ((result expr))
+       (if (error-object? result)
+           (begin
+             (display "  -> Unexpected Error: ")
+             (display result)
+             (newline)
+             #f)
+           #t)))))
 
 (define (run-all-tests)
   (let ((tests (*test-manager* 'get-tests)))

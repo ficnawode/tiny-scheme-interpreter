@@ -527,7 +527,7 @@ static EvalResult eval_dispatch(Value* expr, Value* env)
     }
 
     switch (expr->type) {
-    case VALUE_INT:
+    case VALUE_NUM:
     case VALUE_NIL:
     case VALUE_PRIMITIVE:
     case VALUE_CLOSURE:

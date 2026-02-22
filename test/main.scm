@@ -433,5 +433,202 @@
   (assert-eq 'ok (must-say-yes yes))
   (assert-error? (must-say-yes no))
 )
+(declare-test number-tower-integers
+  ;; Basic arithmetic
+  (assert-eq 5 (+ 2 3))
+  (assert-eq 1 (- 3 2))
+  (assert-eq 6 (* 2 3))
+  (assert-eq 4 (/ 8 2))
+  
+  ;; Negative numbers
+  (assert-eq -5 (+ 2 -7))
+  (assert-eq 6 (* -2 -3))
+  (assert-eq -6 (* 2 -3))
+  
+  ;; Identity and Zero properties
+  (assert-eq 5 (+ 5 0))
+  (assert-eq 5 (* 5 1))
+  (assert-eq 0 (* 5 0))
+)
+
+(declare-test number-tower-rationals
+  ;; Creation via division of integers
+  ;; 1/2 + 1/2 = 1
+  (assert-eq 1 (+ (/ 1 2) (/ 1 2)))
+  
+  ;; 1/3 + 1/6 = 2/6 + 1/6 = 3/6 = 1/2
+  (assert (= (/ 1 2) (+ (/ 1 3) (/ 1 6))))
+  
+  ;; Multiplication: 2/3 * 3/2 = 1
+  (assert-eq 1 (* (/ 2 3) (/ 3 2)))
+  
+  ;; Division of rationals: (1/2) / (1/4) = 2
+  (assert-eq 2 (/ (/ 1 2) (/ 1 4)))
+  
+  ;; Subtraction -> Negative Rationals
+  ;; 1/2 - 1 = -1/2
+  (assert (= (/ -1 2) (- (/ 1 2) 1)))
+)
+
+(declare-test number-tower-floats
+  ;; Basic float arithmetic
+  (assert (= 5.5 (+ 2.5 3.0)))
+  (assert (= 1.5 (- 3.5 2.0)))
+  (assert (= 6.25 (* 2.5 2.5)))
+  
+  ;; Float Division
+  (assert (= 2.5 (/ 5.0 2.0)))
+  
+  ;; Mixed Float/Int arithmetic (Inexactness contagion)
+  (assert (= 5.0 (+ 2 3.0)))
+  (assert (= 2.5 (/ 5 2.0)))
+)
+
+(declare-test number-tower-mixed-types
+  ;; Integer + Rational -> Rational
+  ;; 2 + 1/2 = 5/2
+  (assert (= (/ 5 2) (+ 2 (/ 1 2))))
+  
+  ;; Integer * Rational -> Integer (if divisible)
+  ;; 4 * 1/2 = 2
+  (assert-eq 2 (* 4 (/ 1 2)))
+  
+  ;; Rational + Float -> Float
+  ;; 1/2 + 0.5 = 1.0
+  (assert (= 1.0 (+ (/ 1 2) 0.5)))
+  
+  ;; Rational * Float -> Float
+  (assert (= 0.25 (* (/ 1 2) 0.5)))
+)
+
+(declare-test number-tower-comparisons
+  ;; Equality across types
+  (assert (= 2 2.0))          ; Int = Float
+  (assert (= 1 (/ 2 2)))      ; Int = Rational (simplified)
+  (assert (= 0.5 (/ 1 2)))    ; Float = Rational
+  
+  ;; Inequality
+  (assert (not (= 1 2)))
+  (assert (not (= 1 1.000001)))
+  
+  ;; Less than / Greater than
+  (assert (< 1 2))
+  (assert (< 1 1.5))
+  (assert (< (/ 1 2) 1))
+  (assert (< (/ 1 3) (/ 1 2)))
+  
+  (assert (> 2 1))
+  (assert (> 2.5 2))
+  (assert (> (/ 1 2) (/ 1 3)))
+  
+  ;; Mixed comparisons
+  (assert (> 1.0 (/ 1 2)))    ; 1.0 > 0.5
+  (assert (< (/ 1 2) 0.6))    ; 0.5 < 0.6
+)
+
+(declare-test number-tower-error-conditions
+  ;; Division by zero (Integers)
+  (assert-error? (/ 1 0))
+  
+  ;; Division by zero (Rationals)
+  (assert-error? (/ (/ 1 2) 0))
+  
+  ;; Type errors
+  (assert-error? (+ 1 "2"))
+  (assert-error? (= 1 "1"))
+)
+
+(declare-test number-tower-associativity
+  ;; (a + b) + c = a + (b + c)
+  (let ((a 1) (b 2) (c 3))
+    (assert-eq (+ (+ a b) c) (+ a (+ b c))))
+    
+  ;; Mixed types associativity
+  (let ((a 1) (b 2.5) (c (/ 1 2)))
+    (assert (= (+ (+ a b) c) (+ a (+ b c)))))
+)
+
+(declare-test primitives-division-logic
+  ;; Quotient (integer division)
+  (assert-eq 3 (quotient 10 3))
+  (assert-eq -3 (quotient -10 3))
+  (assert-eq -3 (quotient 10 -3))
+  (assert-eq 3 (quotient -10 -3))
+  
+  ;; Remainder (sign follows numerator)
+  (assert-eq 1 (remainder 10 3))
+  (assert-eq -1 (remainder -10 3))
+  (assert-eq 1 (remainder 10 -3))
+  (assert-eq -1 (remainder -10 -3))
+  
+  ;; Modulo (sign follows denominator)
+  (assert-eq 1 (modulo 10 3))
+  (assert-eq 2 (modulo -10 3))
+  (assert-eq -2 (modulo 10 -3))
+  (assert-eq -1 (modulo -10 -3))
+  
+  ;; Division by zero checks
+  (assert-error? (quotient 10 0))
+  (assert-error? (remainder 10 0))
+  (assert-error? (modulo 10 0))
+)
+
+(declare-test primitives-exactness
+  ;; Predicates
+  (assert (exact? 5))
+  (assert (inexact? 5.0))
+  (assert (exact? (/ 1 2))) ;; Rationals are exact
+  
+  ;; Conversion
+  (assert (inexact? (exact->inexact 5)))
+  (assert-equal? 5.0 (exact->inexact 5))
+  
+  (assert (exact? (inexact->exact 5.0)))
+  (assert-eq 5 (inexact->exact 5.0))
+)
+
+(declare-test stdlib-numeric-predicates
+  (assert (zero? 0))
+  (assert (zero? 0.0))
+  (assert (not (zero? 1)))
+  
+  (assert (positive? 5))
+  (assert (not (positive? -5)))
+  (assert (not (positive? 0)))
+  
+  (assert (negative? -5))
+  (assert (not (negative? 5)))
+  (assert (not (negative? 0)))
+  
+  (assert (even? 4))
+  (assert (even? -4))
+  (assert (not (even? 3)))
+  (assert (odd? 3))
+  (assert (not (odd? 2)))
+)
+
+(declare-test stdlib-math-funcs
+  ;; Abs
+  (assert-eq 5 (abs 5))
+  (assert-eq 5 (abs -5))
+  (assert-eq 0 (abs 0))
+  
+  ;; Min/Max
+  (assert-eq 5 (max 1 2 3 4 5))
+  (assert-eq 5 (max 5 4 3 2 1))
+  (assert-eq 1 (min 1 2 3 4 5))
+  (assert-eq -5 (min 1 2 -5 4))
+  
+  ;; GCD
+  (assert-eq 5 (gcd 10 5))
+  (assert-eq 1 (gcd 7 3))
+  (assert-eq 6 (gcd 12 18))
+  (assert-eq 10 (gcd 0 10))
+  
+  ;; LCM
+  (assert-eq 10 (lcm 2 5))
+  (assert-eq 12 (lcm 4 6))
+  (assert-eq 0 (lcm 0 5))
+)
 
 (run-all-tests)

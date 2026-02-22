@@ -24,20 +24,28 @@ to enter the shell or alternatively
 
 to interpret an entire file. 
 
-In order to run the built-in test suite (written in scheme itself):
+In order to run the built-in test suites:
 
 ```
 make test 
 ```
 
+The test suites consist of two parts: the main one is written in scheme itself and tests the functionality of the language, the other one is written in C and tests the basic properties of the number tower. 
+
 # Features
 
 ## Core
-- integers
+- number tower
+  - fixnums (integers)
+  - bignums (arbitrary length integers)
+  - floatnums (doubles)
+  - ratnums (rational numbers)
+  - complex numbers
 - closures
 - strings 
 - booleans `#t`, `#f` (`#f` is the only false value, `nil`/`'()` is not)
 - `display` and `newline`
+- runtime errors are values! 
 - tail calls (proper TCO - function call in tail position reuses the current function’s stack frame instead of creating a new one, preventing stack growth, meaning we can turn recursion into iteration)
 - garbage collection (for now a simple mark and sweep gc)
 

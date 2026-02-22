@@ -157,10 +157,17 @@ Value* parse_expr(Parser* p)
         return wrap_with_symbol("unquote", p);
     case TOK_UNQUOTE_SPLICING:
         return wrap_with_symbol("unquote-splicing", p);
-    case TOK_NUMBER:
-        long n = atol(p->current.lexeme);
-        parser_advance(p);
-        return value_int_create(n);
+    case TOK_NUMBER: 
+        const char* lexeme = p->current.lexeme;
+        if (strchr(lexeme, '.') != NULL) {
+            double d = strtod(lexeme, NULL);
+            parser_advance(p);
+            return value_num_create(floatnum_create(d));
+        } else {
+            long n = atol(lexeme);
+            parser_advance(p);
+            return value_num_create(fixnum_create(n));
+        }
     case TOK_SYMBOL:
         Value* sym = intern(p->current.lexeme);
         parser_advance(p);
