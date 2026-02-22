@@ -46,6 +46,22 @@ Value* value_cons_create(Value* a, Value* d)
     return v;
 }
 
+Value* value_vector_create(size_t length, Value* fill)
+{
+    Value* v = gc_alloc(VALUE_VECTOR);
+    v->u.vector.length = length;
+
+    if (length > 0) {
+        v->u.vector.data = xmalloc(length * sizeof(Value*));
+        for (size_t i = 0; i < length; ++i) {
+            v->u.vector.data[i] = fill;
+        }
+    } else {
+        v->u.vector.data = NULL;
+    }
+    return v;
+}
+
 Value* value_prim_create(const char* name, PrimFn f)
 {
     Value* v = gc_alloc(VALUE_PRIMITIVE);
@@ -136,7 +152,14 @@ bool value_equal(const Value* a, const Value* b)
 
     case VALUE_PAIR:
         return value_equal(a->u.pair.car, b->u.pair.car) && value_equal(a->u.pair.cdr, b->u.pair.cdr);
-
+    case VALUE_VECTOR:
+        if (a->u.vector.length != b->u.vector.length)
+            return false;
+        for (size_t i = 0; i < a->u.vector.length; i++) {
+            if (!value_equal(a->u.vector.data[i], b->u.vector.data[i]))
+                return false;
+        }
+        return true;
     default:
         return false;
     }
@@ -181,6 +204,15 @@ void value_print(const Value* v)
         break;
     case VALUE_PAIR:
         print_list(v);
+        break;
+    case VALUE_VECTOR:
+        printf("#(");
+        for (size_t i = 0; i < v->u.vector.length; ++i) {
+            if (i > 0)
+                printf(" ");
+            value_print(v->u.vector.data[i]);
+        }
+        printf(")");
         break;
     case VALUE_PRIMITIVE:
         printf("<primitive:%s>", v->u.prim.name);

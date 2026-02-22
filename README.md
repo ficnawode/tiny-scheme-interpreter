@@ -45,6 +45,7 @@ The long term goal of the project is to implement the R5RS standard, as defined 
   - complex numbers
 - closures
 - strings 
+- vectors (contiguous data storage)
 - booleans `#t`, `#f` (`#f` is the only false value, `nil`/`'()` is not)
 - `display` and `newline`
 - runtime errors are values! 
@@ -77,6 +78,7 @@ The long term goal of the project is to implement the R5RS standard, as defined 
 ### Standard library macros
 - `cadr` `caar`, `cddr`
 - `append`, `list`, `map`, `assoc`, `reverse`, `length`
+- `vector-ref`, `list->vector`, `vector->list`, `make-vector`, `vector-set!`
 - `let`, `letrec`, `let*` 
 - `cond` 
 - `and`, `or`, `not` 

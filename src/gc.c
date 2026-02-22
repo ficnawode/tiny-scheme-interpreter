@@ -115,37 +115,40 @@ static void mark(Value *v)
 		return;
 	obj->marked = 1;
 
-	switch (v->type)
-	{
-	case VALUE_PAIR:
-		mark(v->u.pair.car);
-		mark(v->u.pair.cdr);
-		break;
-	case VALUE_CLOSURE:
-		mark(v->u.closure.params);
-		mark(v->u.closure.body);
-		mark(v->u.closure.env);
-		break;
-	case VALUE_MACRO:
-		mark(v->u.macro.params);
-		mark(v->u.macro.body);
-		mark(v->u.macro.env);
-		break;
-	case VALUE_SYNTAX_RULES:
-		SyntaxRules *sr = v->u.syntax_rules;
-		mark(sr->literals);
-		mark(sr->defining_env);
-		for (size_t i = 0; i < sr->rule_count; i++)
-		{
-			mark(sr->rules[i].pattern);
-			mark(sr->rules[i].template);
-		}
-		break;
-	case VALUE_ERROR:
-		mark(v->u.error.call_stack);
-	default:
-		break;
-	}
+    switch (v->type) {
+    case VALUE_PAIR:
+        mark(v->u.pair.car);
+        mark(v->u.pair.cdr);
+        break;
+    case VALUE_VECTOR:
+        for (size_t i = 0; i < v->u.vector.length; ++i) {
+            mark(v->u.vector.data[i]);
+        }
+        break;
+    case VALUE_CLOSURE:
+        mark(v->u.closure.params);
+        mark(v->u.closure.body);
+        mark(v->u.closure.env);
+        break;
+    case VALUE_MACRO:
+        mark(v->u.macro.params);
+        mark(v->u.macro.body);
+        mark(v->u.macro.env);
+        break;
+    case VALUE_SYNTAX_RULES:
+        SyntaxRules* sr = v->u.syntax_rules;
+        mark(sr->literals);
+        mark(sr->defining_env);
+        for (size_t i = 0; i < sr->rule_count; i++) {
+            mark(sr->rules[i].pattern);
+            mark(sr->rules[i].template);
+        }
+        break;
+    case VALUE_ERROR:
+        mark(v->u.error.call_stack);
+    default:
+        break;
+    }
 }
 
 static void free_value_internals(Value *v)
@@ -161,13 +164,18 @@ static void free_value_internals(Value *v)
 	case VALUE_STRING:
 		free(v->u.string);
 		return;
-	case VALUE_ERROR:
-		free(v->u.error.message);
-		return;
-	case VALUE_SYNTAX_RULES:
-		syntax_rules_free(v->u.syntax_rules);
-	default:
-	}
+    case VALUE_VECTOR:
+        if (v->u.vector.data) {
+            free(v->u.vector.data);
+        }
+        break;
+    case VALUE_ERROR:
+        free(v->u.error.message);
+        return;
+    case VALUE_SYNTAX_RULES:
+        syntax_rules_free(v->u.syntax_rules);
+    default:
+    }
 }
 
 static void free_gc_object(GCObject *o)
