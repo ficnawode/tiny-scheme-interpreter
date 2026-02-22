@@ -1,9 +1,10 @@
 #pragma once
 #include <stdbool.h>
+#include "numbers.h"
 
 typedef enum {
     VALUE_NIL,
-    VALUE_INT,
+    VALUE_NUM,
     VALUE_SYMBOL,
     VALUE_STRING,
     VALUE_PAIR,
@@ -24,7 +25,7 @@ struct Value {
     ValueType type;
 
     union {
-        long integer;
+        SchemeNum num;
         char* symbol;
         char* string;
 
@@ -61,7 +62,7 @@ struct Value {
 
 Value* value_get_nil(void);
 
-Value* value_int_create(long n);
+Value* value_num_create(SchemeNum n);
 Value* value_symbol_create(const char* s);
 Value* value_string_create(const char* s);
 Value* value_cons_create(Value* a, Value* d);
