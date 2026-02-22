@@ -1,6 +1,6 @@
 # Tiny Scheme Interpreter
 
-This is an interpreter for a small subset of the MIT scheme language.
+This is an interpreter for a subset of R5RS scheme.
 
 # Usage 
 
@@ -24,20 +24,30 @@ to enter the shell or alternatively
 
 to interpret an entire file. 
 
-In order to run the built-in test suite (written in scheme itself):
+In order to run the built-in test suites:
 
 ```
 make test 
 ```
 
+The test suites consist of two parts: the main one is written in scheme itself and tests the functionality of the language, the other one is written in C and tests the basic properties of the number tower. 
+
 # Features
 
+The long term goal of the project is to implement the R5RS standard, as defined [here](https://conservatory.scheme.org/schemers/Documents/Standards/R5RS/r5rs.pdf). 
+
 ## Core
-- integers
+- number tower
+  - fixnums (integers)
+  - bignums (arbitrary length integers)
+  - floatnums (doubles)
+  - ratnums (rational numbers)
+  - complex numbers
 - closures
 - strings 
 - booleans `#t`, `#f` (`#f` is the only false value, `nil`/`'()` is not)
 - `display` and `newline`
+- runtime errors are values! 
 - tail calls (proper TCO - function call in tail position reuses the current function’s stack frame instead of creating a new one, preventing stack growth, meaning we can turn recursion into iteration)
 - garbage collection (for now a simple mark and sweep gc)
 
@@ -53,25 +63,26 @@ make test
 - `apply`
 
 ### Primitives
- - `+`, `-`, `*`, `/`, `=`, `>`, `<`
- - `number? `
+ - `+`, `-`, `*`, `/`, `=`, `>`, `<`, `mod`
+ - `number? `, `exact?`, `inexact?`
+ - `exact->inexact` and other conversion primitives
  - `cons`, `car`, `cdr`, `list?`
  - `eq? `
  - `atom?`
  - `null?`
  - `string?`, `string-length`, `string-append`
  - `gensym`
- - `display`
- - `newline`
+ - `display`, `newline`
 
-## Standard library macros
-- `cadr`
-- `append`
+### Standard library macros
+- `cadr` `caar`, `cddr`
+- `append`, `list`, `map`, `assoc`, `reverse`, `length`
 - `let`, `letrec`, `let*` 
 - `cond` 
 - `and`, `or`, `not` 
 - `map`, `reverse`  
-- `equal?` 
+- `equal?` `positive?` `negative?` `exact?` `even?` `odd?`
+- `abs`, `max`, `min`, `gcd`, `lcm`
 
 # Error handling
 
@@ -122,5 +133,10 @@ Stack trace:
   (game-turn-B 3)
 ```
 
+# Garbage Collector
+
+The GC is a stop-the-world mark-and-sweep compiler. You can see how the memory gets allocated and cleaned up using `valgrind`/`massif`. Here is what a memory profile of the scheme test suite looks like (note the jagged edges where the GC stops to clean up): 
+
+![massif memory profile plot](docs/images/massif_memory_gc_profile_test_suite.png)
 
 Inspired by MIT 6.001 (1986)

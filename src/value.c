@@ -14,10 +14,9 @@ Value* value_get_nil(void)
     return &nil_val;
 }
 
-Value* value_int_create(long n)
-{
-    Value* v = gc_alloc(VALUE_INT);
-    v->u.integer = n;
+Value* value_num_create(SchemeNum num) {
+    Value* v = gc_alloc(VALUE_NUM);
+    v->u.num = num;
     return v;
 }
 
@@ -139,8 +138,8 @@ bool value_equal(const Value* a, const Value* b)
     }
 
     switch (a->type) {
-    case VALUE_INT:
-        return a->u.integer == b->u.integer;
+    case VALUE_NUM:
+        return schemenum_eq(a->u.num, b->u.num);
 
     case VALUE_STRING:
         return strcmp(a->u.string, b->u.string) == 0;
@@ -194,8 +193,8 @@ void value_print(const Value* v)
     case VALUE_NIL:
         printf("()");
         break;
-    case VALUE_INT:
-        printf("%ld", v->u.integer);
+    case VALUE_NUM:
+        schemenum_print(v->u.num);
         break;
     case VALUE_SYMBOL:
         printf("%s", v->u.symbol);

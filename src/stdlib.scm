@@ -60,8 +60,6 @@
           (equal? (cdr a) (cdr b))))
     (else #f)))
 
-
-
 (define undefined 'undefined)
 
 (define-syntax let
@@ -161,3 +159,33 @@
          (cond clause1 . rest-clauses)))))
 
 
+(define (zero? x) (= x 0))
+(define (positive? x) (> x 0))
+(define (negative? x) (< x 0))
+
+(define (even? n) (= (remainder n 2) 0))
+(define (odd? n)  (not (even? n)))
+
+(define (abs x)
+  (if (< x 0) (- 0 x) x))
+
+(define (max first . rest)
+  (letrec ((iter (lambda (curr rem)
+                   (if (null? rem) curr
+                       (iter (if (> (car rem) curr) (car rem) curr)
+                             (cdr rem))))))
+    (iter first rest)))
+
+(define (min first . rest)
+  (letrec ((iter (lambda (curr rem)
+                   (if (null? rem) curr
+                       (iter (if (< (car rem) curr) (car rem) curr)
+                             (cdr rem))))))
+    (iter first rest)))
+
+(define (gcd a b)
+  (if (= b 0) a (gcd b (remainder a b))))
+
+(define (lcm a b)
+  (if (or (= a 0) (= b 0)) 0
+      (abs (/ (* a b) (gcd a b)))))
